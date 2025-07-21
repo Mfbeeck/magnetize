@@ -55,7 +55,7 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         ],
         response_format: { type: "json_object" },
         temperature: 0.8,
-        max_tokens: 4000
+        max_completion_tokens: 4000
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
