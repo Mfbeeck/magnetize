@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X } from "lucide-react";
@@ -24,12 +25,19 @@ interface EditModalProps {
 export function EditModal({ isOpen, onClose, onSubmit, initialData }: EditModalProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(generateIdeasSchema),
-    defaultValues: initialData || {
+    defaultValues: {
       businessType: "",
       targetAudience: "",
       location: "",
     },
   });
+
+  // Update form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset(initialData);
+    }
+  }, [initialData, form]);
 
   const handleSubmit = (data: FormData) => {
     onSubmit(data);

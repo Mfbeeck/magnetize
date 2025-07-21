@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Sparkles, Magnet, Edit, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { generateIdeasSchema, type LeadMagnetIdea } from "@shared/schema";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
+import { IdeaDetailModal } from "@/components/idea-detail-modal";
 
 type FormData = {
   businessType: string;
@@ -23,8 +25,12 @@ type FormData = {
 
 export default function Home() {
   const [ideas, setIdeas] = useState<LeadMagnetIdea[]>([]);
+  const [filteredIdeas, setFilteredIdeas] = useState<LeadMagnetIdea[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
   const [currentData, setCurrentData] = useState<FormData | null>(null);
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['Simple', 'Moderate', 'Advanced']));
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -43,6 +49,7 @@ export default function Home() {
     },
     onSuccess: (data) => {
       setIdeas(data.ideas);
+      setFilteredIdeas(data.ideas);
       setCurrentData(form.getValues());
       toast({
         title: "Success!",
@@ -72,6 +79,38 @@ export default function Home() {
   const handleRegenerate = () => {
     if (currentData) {
       generateIdeasMutation.mutate(currentData);
+    }
+  };
+
+  const toggleFilter = (complexity: string) => {
+    const newFilters = new Set(activeFilters);
+    if (newFilters.has(complexity)) {
+      newFilters.delete(complexity);
+    } else {
+      newFilters.add(complexity);
+    }
+    setActiveFilters(newFilters);
+    
+    // Filter ideas based on active filters
+    const filtered = ideas.filter(idea => newFilters.has(idea.complexityLevel));
+    setFilteredIdeas(filtered);
+  };
+
+  const handleViewDetails = (idea: LeadMagnetIdea) => {
+    setSelectedIdea(idea);
+    setIsDetailModalOpen(true);
+  };
+
+  const getComplexityColor = (level: string) => {
+    switch (level.toLowerCase()) {
+      case "simple":
+        return "bg-green-100 text-green-700 hover:bg-green-200";
+      case "moderate":
+        return "bg-amber-100 text-amber-700 hover:bg-amber-200";
+      case "advanced":
+        return "bg-red-100 text-red-700 hover:bg-red-200";
+      default:
+        return "bg-slate-100 text-slate-700 hover:bg-slate-200";
     }
   };
 
@@ -247,20 +286,48 @@ export default function Home() {
             </Card>
 
             {/* Results Header */}
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-semibold text-slate-900">Your Lead Magnet Ideas</h3>
-              <div className="flex items-center space-x-2 text-sm text-slate-600">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                <span>{ideas.length} ideas generated</span>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <h3 className="text-2xl font-semibold text-slate-900">Your Lead Magnet Ideas</h3>
+                <div className="flex items-center space-x-2 text-sm text-slate-600">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <span>{filteredIdeas.length} of {ideas.length} ideas shown</span>
+                </div>
+              </div>
+              
+              {/* Complexity Filters */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600 mr-2">Filter:</span>
+                {['Simple', 'Moderate', 'Advanced'].map((complexity) => (
+                  <Badge
+                    key={complexity}
+                    variant={activeFilters.has(complexity) ? "default" : "outline"}
+                    className={`cursor-pointer transition-colors ${
+                      activeFilters.has(complexity) 
+                        ? getComplexityColor(complexity) + ' opacity-100' 
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                    }`}
+                    onClick={() => toggleFilter(complexity)}
+                  >
+                    {complexity}
+                  </Badge>
+                ))}
               </div>
             </div>
 
             {/* Ideas Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-              {ideas.map((idea, index) => (
-                <IdeaCard key={index} idea={idea} />
+              {filteredIdeas.map((idea, index) => (
+                <IdeaCard key={index} idea={idea} onViewDetails={() => handleViewDetails(idea)} />
               ))}
             </div>
+
+            {filteredIdeas.length === 0 && ideas.length > 0 && (
+              <div className="text-center py-8">
+                <p className="text-slate-600">No ideas match the selected complexity filters.</p>
+                <p className="text-sm text-slate-500 mt-1">Try adjusting your filter selection above.</p>
+              </div>
+            )}
 
             {/* Generate New Ideas Button */}
             <div className="text-center">
@@ -282,6 +349,13 @@ export default function Home() {
           onClose={() => setIsModalOpen(false)}
           onSubmit={handleEdit}
           initialData={currentData}
+        />
+
+        {/* Idea Detail Modal */}
+        <IdeaDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          idea={selectedIdea}
         />
       </main>
     </div>

@@ -1,12 +1,15 @@
+import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { type LeadMagnetIdea } from "@shared/schema";
 
 interface IdeaCardProps {
   idea: LeadMagnetIdea;
+  onViewDetails: () => void;
 }
 
-export function IdeaCard({ idea }: IdeaCardProps) {
+export function IdeaCard({ idea, onViewDetails }: IdeaCardProps) {
   const getComplexityColor = (level: string) => {
     switch (level.toLowerCase()) {
       case "simple":
@@ -30,23 +33,26 @@ export function IdeaCard({ idea }: IdeaCardProps) {
           </Badge>
         </div>
         
-        <p className="text-sm font-medium text-slate-600 mb-2">{idea.coreFunction}</p>
-        
-        <p className="text-slate-700 mb-4 text-sm leading-relaxed">
-          {idea.detailedDescription}
-        </p>
-        
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Value Proposition</span>
-            <p className="text-sm text-slate-700 mt-1">{idea.valueProposition}</p>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Core Function</span>
+            <p className="text-sm text-slate-700 mt-1 leading-relaxed">{idea.coreFunction}</p>
           </div>
           
           <div>
             <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Lead Connection</span>
-            <p className="text-sm text-slate-700 mt-1">{idea.leadConnection}</p>
+            <p className="text-sm text-slate-700 mt-1 leading-relaxed">{idea.leadConnection}</p>
           </div>
         </div>
+
+        <Button 
+          variant="outline" 
+          onClick={onViewDetails}
+          className="w-full mt-4 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+        >
+          More Details
+          <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
       </CardContent>
     </Card>
   );

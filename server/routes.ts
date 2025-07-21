@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { generateIdeasSchema, type LeadMagnetIdea } from "@shared/schema";
 import OpenAI from "openai";
 
-const openai = new OpenAI({ 
+const client = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
 });
 
@@ -41,24 +41,18 @@ Make sure to include at least 1 idea for each complexity level.
 Output Format:
 Return as a dictionary in json format with an "ideas" array containing all ideas and their respective properties. Each idea should have the exact properties: name, coreFunction, detailedDescription, valueProposition, leadConnection, complexityLevel.`;
 
-      const response = await openai.chat.completions.create({
-        model: "o3-mini", // Using o3 model as requested by user
-        messages: [
-          {
-            role: "system",
-            content: "You are a digital marketing strategist. Always respond with valid JSON containing an 'ideas' array."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.8,
-        max_completion_tokens: 4000
+      const response = await client.responses.create({
+        model: "o4-mini", // Using o3 model as requested by user
+        input: prompt,
+        text: { 
+          format: {
+            type: "json_object" }
+        }
       });
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
+      console.log("Response from OpenAI:", response)
+      const rawOutputText = response.output_text;
+      const result = JSON.parse(rawOutputText || "{}");
       
       if (!result.ideas || !Array.isArray(result.ideas)) {
         throw new Error("Invalid response format from OpenAI");
