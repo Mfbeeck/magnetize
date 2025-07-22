@@ -129,21 +129,21 @@ export default function Home() {
               </div>
               <h1 className="text-xl font-bold text-slate-900">Magnetize</h1>
             </div>
-            <nav className="hidden md:flex items-center space-x-6">
+            {/* <nav className="hidden md:flex items-center space-x-6">
               <a href="#" className="text-slate-600 hover:text-slate-900 transition-colors">How it works</a>
               <a href="#" className="text-slate-600 hover:text-slate-900 transition-colors">Examples</a>
               <a href="#" className="text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
-            </nav>
+            </nav> */}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-slate-900 mb-4">Generate Powerful Lead Magnets</h2>
+          <h2 className="text-4xl font-bold text-slate-900 mb-4">Discover Your Perfect Lead Magnet</h2>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            Get AI-powered web app ideas that attract your ideal customers and naturally lead to your paid services.
+            Lead magnets are free tools or apps your ideal customers access in exchange for their email. We help you figure out the right one for your business.
           </p>
         </div>
 
@@ -222,8 +222,7 @@ export default function Home() {
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6"
                       disabled={generateIdeasMutation.isPending}
                     >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Lead Magnet Ideas
+                      Get Lead Magnet Ideas
                     </Button>
                   </form>
                 </Form>
@@ -240,8 +239,10 @@ export default function Home() {
                 <div className="mb-4">
                   <LoadingSpinner className="mx-auto text-blue-500" size="lg" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">Generating Your Lead Magnet Ideas</h3>
-                <p className="text-slate-600">Our AI is analyzing your business and creating personalized recommendations...</p>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">Finding the Right Lead Magnet for Your Business</h3>
+                <p className="text-slate-600">
+                  Analyzing your answers to generate smart, personalized ideas your audience will actually want...
+                </p>
               </CardContent>
             </Card>
           </div>
