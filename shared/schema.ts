@@ -4,30 +4,31 @@ import { z } from "zod";
 
 export const leadMagnetRequests = pgTable("lead_magnet_requests", {
   id: serial("id").primaryKey(),
-  businessType: text("business_type").notNull(),
+  prodDescription: text("prod_description").notNull(),
   targetAudience: text("target_audience").notNull(),
   location: text("location"),
   ideas: jsonb("ideas").notNull(),
 });
 
 export const insertLeadMagnetRequestSchema = createInsertSchema(leadMagnetRequests).pick({
-  businessType: true,
+  prodDescription: true,
   targetAudience: true,
   location: true,
 });
 
 export const generateIdeasSchema = z.object({
-  businessType: z.string().min(1, "Business type is required"),
+  prodDescription: z.string().min(1, "Product description is required"),
   targetAudience: z.string().min(1, "Target audience is required"),
   location: z.string().optional(),
 });
 
 export interface LeadMagnetIdea {
   name: string;
-  coreFunction: string;
+  summary: string;
   detailedDescription: string;
   valueProposition: string;
   leadConnection: string;
+  creationPrompt: string;
   complexityLevel: "Simple" | "Moderate" | "Advanced";
 }
 

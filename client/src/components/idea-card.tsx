@@ -24,31 +24,21 @@ export function IdeaCard({ idea, onViewDetails }: IdeaCardProps) {
   };
 
   return (
-    <Card className="bg-white shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <h4 className="text-lg font-semibold text-slate-900 flex-1 pr-2">{idea.name}</h4>
-          <Badge variant="secondary" className={getComplexityColor(idea.complexityLevel)}>
+    <Card className="bg-white shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 h-full flex flex-col">
+      <CardContent className="p-6 flex flex-col h-full">
+        <div className="flex-1">
+          <h4 className="text-lg font-semibold text-slate-900 mb-2">{idea.name}</h4>
+          <Badge variant="secondary" className={`${getComplexityColor(idea.complexityLevel)} mb-4`}>
             {idea.complexityLevel}
           </Badge>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Core Function</span>
-            <p className="text-sm text-slate-700 mt-1 leading-relaxed">{idea.coreFunction}</p>
-          </div>
           
-          <div>
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Lead Connection</span>
-            <p className="text-sm text-slate-700 mt-1 leading-relaxed">{idea.leadConnection}</p>
-          </div>
+          <p className="text-sm text-slate-700 leading-relaxed">{idea.summary}</p>
         </div>
 
         <Button 
           variant="outline" 
           onClick={onViewDetails}
-          className="w-full mt-4 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+          className="w-full mt-6 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
         >
           More Details
           <ChevronRight className="ml-2 h-4 w-4" />

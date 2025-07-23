@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -10,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { generateIdeasSchema } from "@shared/schema";
 
 type FormData = {
-  businessType: string;
+  prodDescription: string;
   targetAudience: string;
   location?: string;
 };
@@ -26,7 +25,7 @@ export function EditModal({ isOpen, onClose, onSubmit, initialData }: EditModalP
   const form = useForm<FormData>({
     resolver: zodResolver(generateIdeasSchema),
     defaultValues: {
-      businessType: "",
+      prodDescription: "",
       targetAudience: "",
       location: "",
     },
@@ -56,14 +55,6 @@ export function EditModal({ isOpen, onClose, onSubmit, initialData }: EditModalP
             <DialogTitle className="text-xl font-semibold text-slate-900">
               Edit Business Information
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="text-slate-400 hover:text-slate-600"
-            >
-              <X className="h-5 w-5" />
-            </Button>
           </div>
         </DialogHeader>
         
@@ -72,7 +63,7 @@ export function EditModal({ isOpen, onClose, onSubmit, initialData }: EditModalP
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="businessType"
+                name="prodDescription"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium text-slate-700">

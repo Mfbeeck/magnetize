@@ -16,9 +16,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
 import { IdeaDetailModal } from "@/components/idea-detail-modal";
+import { AboutModal } from "@/components/about-modal";
 
 type FormData = {
-  businessType: string;
+  prodDescription: string;
   targetAudience: string;
   location?: string;
 };
@@ -28,6 +29,7 @@ export default function Home() {
   const [filteredIdeas, setFilteredIdeas] = useState<LeadMagnetIdea[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
   const [currentData, setCurrentData] = useState<FormData | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['Simple', 'Moderate', 'Advanced']));
@@ -36,7 +38,7 @@ export default function Home() {
   const form = useForm<FormData>({
     resolver: zodResolver(generateIdeasSchema),
     defaultValues: {
-      businessType: "",
+      prodDescription: "",
       targetAudience: "",
       location: "",
     },
@@ -123,29 +125,43 @@ export default function Home() {
       <header className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => {
+                setIdeas([]);
+                setFilteredIdeas([]);
+                setCurrentData(null);
+                setActiveFilters(new Set(['Simple', 'Moderate', 'Advanced']));
+                form.reset();
+              }}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+            >
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
                 <Magnet className="text-white text-sm" />
               </div>
               <h1 className="text-xl font-bold text-slate-900">Magnetize</h1>
-            </div>
-            {/* <nav className="hidden md:flex items-center space-x-6">
-              <a href="#" className="text-slate-600 hover:text-slate-900 transition-colors">How it works</a>
-              <a href="#" className="text-slate-600 hover:text-slate-900 transition-colors">Examples</a>
-              <a href="#" className="text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
-            </nav> */}
+            </button>
+            <nav className="flex items-center space-x-6">
+              <button
+                onClick={() => setIsAboutModalOpen(true)}
+                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+              >
+                About
+              </button>
+            </nav>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-slate-900 mb-4">Discover Your Perfect Lead Magnet</h2>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            Lead magnets are free tools or apps your ideal customers access in exchange for their email. We help you figure out the right one for your business.
-          </p>
-        </div>
+        {showForm && (
+          <div className="text-center mb-12">
+            <h2 className="max-w-xl mx-auto text-4xl font-bold text-slate-900 mb-4">Discover the Right Lead Magnet for Your Business</h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+            People don’t want to be sold, they want to be helped. Magnetize gives you lead magnet ideas you can build today to earn attention by delivering real value upfront.
+            </p>
+          </div>
+        )}
 
         {/* Input Form */}
         {showForm && (
@@ -158,11 +174,11 @@ export default function Home() {
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <FormField
                       control={form.control}
-                      name="businessType"
+                      name="prodDescription"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-sm font-medium text-slate-700">
-                            Business Type <span className="text-red-500">*</span>
+                            Product or Service Description<span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
                             <Textarea
@@ -183,7 +199,7 @@ export default function Home() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-sm font-medium text-slate-700">
-                            Target Audience <span className="text-red-500">*</span>
+                            Target Audience<span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
                             <Textarea
@@ -259,8 +275,8 @@ export default function Home() {
                     <h3 className="text-lg font-semibold text-slate-900 mb-4">Your Business Profile</h3>
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <span className="text-sm font-medium text-slate-500">Business Type:</span>
-                        <p className="text-slate-900 mt-1">{currentData.businessType}</p>
+                        <span className="text-sm font-medium text-slate-500">Product or Service Description:</span>
+                        <p className="text-slate-900 mt-1">{currentData.prodDescription}</p>
                       </div>
                       <div>
                         <span className="text-sm font-medium text-slate-500">Target Audience:</span>
@@ -290,10 +306,6 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div className="flex items-center gap-4">
                 <h3 className="text-2xl font-semibold text-slate-900">Your Lead Magnet Ideas</h3>
-                <div className="flex items-center space-x-2 text-sm text-slate-600">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span>{filteredIdeas.length} of {ideas.length} ideas shown</span>
-                </div>
               </div>
               
               {/* Complexity Filters */}
@@ -357,6 +369,12 @@ export default function Home() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           idea={selectedIdea}
+        />
+
+        {/* About Modal */}
+        <AboutModal
+          isOpen={isAboutModalOpen}
+          onClose={() => setIsAboutModalOpen(false)}
         />
       </main>
     </div>

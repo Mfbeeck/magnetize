@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -13,33 +14,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/generate-ideas", async (req, res) => {
     try {
       const validatedData = generateIdeasSchema.parse(req.body);
-      const { businessType, targetAudience, location } = validatedData;
+      const { prodDescription, targetAudience, location } = validatedData;
 
-      const prompt = `You are a digital marketing strategist specializing in lead generation through value-driven web applications. Your task is to generate innovative web app ideas that can serve as lead magnets for businesses.
+      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
 
 Business Context:
-Business type: ${businessType}
-Location: ${location || 'Not specified'}
+Product/service: ${prodDescription}
 Target audience: ${targetAudience}
+Location: ${location || 'Not specified'}
 
 Requirements:
 Generate 7-10 web app ideas that:
-- Solve a real problem your target audience faces
-- Naturally lead to your paid services
+- Solve a real problem the target audience faces
+- Naturally lead to my paid services
 - Can collect email addresses/contact info
 
 For each idea, provide:
-- App Name (creative and memorable)
-- Core Function (what it does in one sentence)
-- Detailed Description (explaining more about the app)
-- Value Proposition (why someone would use it)
-- Lead Connection (how it connects to your services)
-- Complexity Level (Simple/Moderate/Advanced)
+- Lead Magnet Name: creative, but self-explanatory
+- Summary: what it is in 1-2 sentences
+- Detailed Description: a more detailed explainer of the lead magnet, 4-6 sentences long
+- Value Proposition: why would the target audience use this
+- Lead Connection: how it connects to your product/service
+- Creation Prompt: A somewhat simple prompt I can give an AI to build out a prototype of this lead magnet
+- Complexity Level: Simple/Moderate/Advanced
 
 Make sure to include at least 1 idea for each complexity level.
 
 Output Format:
-Return as a dictionary in json format with an "ideas" array containing all ideas and their respective properties. Each idea should have the exact properties: name, coreFunction, detailedDescription, valueProposition, leadConnection, complexityLevel.`;
+Return as a dictionary in json format with an "ideas" array containing all ideas and their respective properties. Each idea should have the exact properties: name, summary, detailedDescription, valueProposition, leadConnection, creationPrompt, complexityLevel.`;
 
       const response = await client.responses.create({
         model: "o4-mini", // Using o3 model as requested by user
@@ -61,16 +63,17 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
       // Validate each idea has required properties
       const validatedIdeas: LeadMagnetIdea[] = result.ideas.map((idea: any) => ({
         name: idea.name || "Unnamed Idea",
-        coreFunction: idea.coreFunction || "No core function specified",
+        summary: idea.summary || "No summary provided",
         detailedDescription: idea.detailedDescription || "No description provided",
         valueProposition: idea.valueProposition || "No value proposition specified",
         leadConnection: idea.leadConnection || "No lead connection specified",
+        creationPrompt: idea.creationPrompt || "No creation prompt provided",
         complexityLevel: idea.complexityLevel || "Simple"
       }));
 
       // Save request to storage
       await storage.saveLeadMagnetRequest({
-        businessType,
+        prodDescription,
         targetAudience,
         location: location || null,
         ideas: validatedIdeas
