@@ -23,8 +23,19 @@ export function IdeaCard({ idea, onViewDetails }: IdeaCardProps) {
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent triggering when clicking the button
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    onViewDetails();
+  };
+
   return (
-    <Card className="bg-white shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 h-full flex flex-col">
+    <Card 
+      className="bg-white shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 h-full flex flex-col cursor-pointer" 
+      onClick={handleCardClick}
+    >
       <CardContent className="p-6 flex flex-col h-full">
         <div className="flex-1">
           <h4 className="text-lg font-semibold text-slate-900 mb-2">{idea.name}</h4>

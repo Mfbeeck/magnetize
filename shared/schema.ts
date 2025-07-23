@@ -26,9 +26,9 @@ export interface LeadMagnetIdea {
   name: string;
   summary: string;
   detailedDescription: string;
-  valueProposition: string;
-  leadConnection: string;
-  creationPrompt: string;
+  whyThis: string;
+  creationPrompt?: string;
+  magnetSpec?: string;
   complexityLevel: "Simple" | "Moderate" | "Advanced";
 }
 

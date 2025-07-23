@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -9,10 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { generateIdeasSchema, type LeadMagnetIdea } from "@shared/schema";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
 import { IdeaDetailModal } from "@/components/idea-detail-modal";
@@ -33,6 +33,7 @@ export default function Home() {
   const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
   const [currentData, setCurrentData] = useState<FormData | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['Simple', 'Moderate', 'Advanced']));
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -53,12 +54,14 @@ export default function Home() {
       setIdeas(data.ideas);
       setFilteredIdeas(data.ideas);
       setCurrentData(form.getValues());
+      setProgress(0);
       toast({
-        title: "Success!",
-        description: `Generated ${data.ideas.length} lead magnet ideas for your business.`,
+        title: "Your lead magnet ideas are ready!",
+        description: `Magnetize generated ${data.ideas.length} ideas for your business. Click any of them to see more details.`,
       });
     },
     onError: (error) => {
+      setProgress(0);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to generate ideas. Please try again.",
@@ -66,6 +69,24 @@ export default function Home() {
       });
     },
   });
+
+  // Progress simulation effect
+  useEffect(() => {
+    if (generateIdeasMutation.isPending) {
+      setProgress(0);
+      const interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 95) {
+            clearInterval(interval);
+            return prev; // Keep the current progress instead of capping at 90%
+          }
+          return prev + Math.random() * 4 + 1; // Random increment between 1-5
+        });
+      }, 1200); // Increased to 1200ms for slower progression
+
+      return () => clearInterval(interval);
+    }
+  }, [generateIdeasMutation.isPending]);
 
   const onSubmit = (data: FormData) => {
     generateIdeasMutation.mutate(data);
@@ -251,14 +272,27 @@ export default function Home() {
         {generateIdeasMutation.isPending && (
           <div className="mb-8">
             <Card className="bg-white shadow-sm border border-slate-200">
-              <CardContent className="p-8 text-center">
-                <div className="mb-4">
-                  <LoadingSpinner className="mx-auto text-blue-500" size="lg" />
+              <CardContent className="p-8">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-semibold text-slate-900 mb-2">Finding the Right Lead Magnet for Your Business</h3>
+                  <p className="text-slate-600 mb-6">
+                    Analyzing your answers to generate smart, personalized ideas your audience will actually want...
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">Finding the Right Lead Magnet for Your Business</h3>
-                <p className="text-slate-600">
-                  Analyzing your answers to generate smart, personalized ideas your audience will actually want...
-                </p>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm text-slate-600 mb-2">
+                    <span>Generating ideas...</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-3" />
+                  <div className="text-xs text-slate-500 text-center">
+                    {progress < 30 && "Analyzing your business context..."}
+                    {progress >= 30 && progress < 60 && "Researching target audience needs..."}
+                    {progress >= 60 && progress < 90 && "Creating personalized lead magnet ideas..."}
+                    {progress >= 90 && "Finalizing your ideas..."}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -369,6 +403,7 @@ export default function Home() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           idea={selectedIdea}
+          businessData={currentData || undefined}
         />
 
         {/* About Modal */}
