@@ -59,6 +59,8 @@ export default function Home() {
         title: "Your lead magnet ideas are ready!",
         description: `Magnetize generated ${data.ideas.length} ideas for your business. Click any of them to see more details.`,
       });
+      // Redirect to the results page
+      window.location.href = `/results/${data.publicId}`;
     },
     onError: (error) => {
       setProgress(0);

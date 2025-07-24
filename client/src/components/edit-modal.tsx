@@ -130,7 +130,7 @@ export function EditModal({ isOpen, onClose, onSubmit, initialData }: EditModalP
                   type="submit"
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Update & Regenerate
+                  Generate New Ideas
                 </Button>
               </div>
             </form>

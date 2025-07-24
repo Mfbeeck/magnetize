@@ -1,19 +1,58 @@
-import { pgTable, text, serial, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, jsonb, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
-export const leadMagnetRequests = pgTable("lead_magnet_requests", {
+// Magnet Requests table
+export const magnetRequests = pgTable("magnet_requests", {
   id: serial("id").primaryKey(),
+  publicId: text("public_id").notNull().unique(), // Randomly generated ID for sharing
   prodDescription: text("prod_description").notNull(),
   targetAudience: text("target_audience").notNull(),
   location: text("location"),
-  ideas: jsonb("ideas").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertLeadMagnetRequestSchema = createInsertSchema(leadMagnetRequests).pick({
+// Ideas table
+export const ideas = pgTable("ideas", {
+  id: serial("id").primaryKey(),
+  magnetRequestId: integer("magnet_request_id").notNull().references(() => magnetRequests.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  summary: text("summary").notNull(),
+  detailedDescription: text("detailed_description").notNull(),
+  whyThis: text("why_this").notNull(),
+  creationPrompt: text("creation_prompt"), // Will be generated later
+  magnetSpec: text("magnet_spec"), // Will be generated later
+  complexityLevel: text("complexity_level").notNull(), // "Simple" | "Moderate" | "Advanced"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Define relationships
+export const magnetRequestsRelations = relations(magnetRequests, ({ many }) => ({
+  ideas: many(ideas),
+}));
+
+export const ideasRelations = relations(ideas, ({ one }) => ({
+  magnetRequest: one(magnetRequests, {
+    fields: [ideas.magnetRequestId],
+    references: [magnetRequests.id],
+  }),
+}));
+
+// Schemas for validation
+export const insertMagnetRequestSchema = createInsertSchema(magnetRequests).pick({
   prodDescription: true,
   targetAudience: true,
   location: true,
+});
+
+export const insertIdeaSchema = createInsertSchema(ideas).pick({
+  magnetRequestId: true,
+  name: true,
+  summary: true,
+  detailedDescription: true,
+  whyThis: true,
+  complexityLevel: true,
 });
 
 export const generateIdeasSchema = z.object({
@@ -23,6 +62,7 @@ export const generateIdeasSchema = z.object({
 });
 
 export interface LeadMagnetIdea {
+  id?: number;
   name: string;
   summary: string;
   detailedDescription: string;
@@ -34,7 +74,11 @@ export interface LeadMagnetIdea {
 
 export interface GenerateIdeasResponse {
   ideas: LeadMagnetIdea[];
+  magnetRequestId: number;
+  publicId: string;
 }
 
-export type InsertLeadMagnetRequest = z.infer<typeof insertLeadMagnetRequestSchema>;
-export type LeadMagnetRequest = typeof leadMagnetRequests.$inferSelect;
+export type InsertMagnetRequest = z.infer<typeof insertMagnetRequestSchema>;
+export type InsertIdea = z.infer<typeof insertIdeaSchema>;
+export type MagnetRequest = typeof magnetRequests.$inferSelect;
+export type Idea = typeof ideas.$inferSelect;

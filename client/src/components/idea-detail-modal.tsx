@@ -29,7 +29,11 @@ export function IdeaDetailModal({ isOpen, onClose, idea, businessData }: IdeaDet
 
   const generateSpecMutation = useMutation({
     mutationFn: async ({ idea, businessData }: { idea: LeadMagnetIdea; businessData: any }) => {
-      const response = await apiRequest("POST", "/api/generate-spec", { idea, businessData });
+      const response = await apiRequest("POST", "/api/generate-spec", { 
+        idea, 
+        businessData,
+        ideaId: idea.id 
+      });
       return response.json();
     },
     onSuccess: (data) => {

@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { type LeadMagnetIdea } from "@shared/schema";
 
 interface IdeaCardProps {
-  idea: LeadMagnetIdea;
+  idea: LeadMagnetIdea & { id?: number };
   onViewDetails: () => void;
+  publicId?: string;
 }
 
-export function IdeaCard({ idea, onViewDetails }: IdeaCardProps) {
+export function IdeaCard({ idea, onViewDetails, publicId }: IdeaCardProps) {
   const getComplexityColor = (level: string) => {
     switch (level.toLowerCase()) {
       case "simple":
@@ -28,7 +29,13 @@ export function IdeaCard({ idea, onViewDetails }: IdeaCardProps) {
     if ((e.target as HTMLElement).closest('button')) {
       return;
     }
-    onViewDetails();
+    
+    // If we have a publicId and idea id, navigate to the idea page
+    if (publicId && idea.id) {
+      window.location.href = `/results/${publicId}/ideas/${idea.id}`;
+    } else {
+      onViewDetails();
+    }
   };
 
   return (
@@ -48,7 +55,14 @@ export function IdeaCard({ idea, onViewDetails }: IdeaCardProps) {
 
         <Button 
           variant="outline" 
-          onClick={onViewDetails}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (publicId && idea.id) {
+              window.location.href = `/results/${publicId}/ideas/${idea.id}`;
+            } else {
+              onViewDetails();
+            }
+          }}
           className="w-full mt-6 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
         >
           More Details
