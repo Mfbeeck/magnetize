@@ -6,10 +6,13 @@ import * as schema from "@shared/schema";
 import { 
   magnetRequests, 
   ideas,
+  helpRequests,
   type MagnetRequest, 
   type Idea,
+  type HelpRequest,
   type InsertMagnetRequest, 
-  type InsertIdea
+  type InsertIdea,
+  type InsertHelpRequest
 } from "@shared/schema";
 
 // Initialize database connection
@@ -33,6 +36,7 @@ export interface IStorage {
   getMagnetRequestByPublicId(publicId: string): Promise<MagnetRequest & { ideas: Idea[] } | null>;
   getIdeaById(id: number): Promise<Idea & { magnetRequest: MagnetRequest } | null>;
   updateIdea(id: number, updates: Partial<Pick<Idea, 'creationPrompt' | 'magnetSpec'>>): Promise<Idea | null>;
+  createHelpRequest(request: InsertHelpRequest): Promise<HelpRequest>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -101,6 +105,11 @@ export class SupabaseStorage implements IStorage {
       .returning();
     
     return updatedIdea || null;
+  }
+
+  async createHelpRequest(request: InsertHelpRequest): Promise<HelpRequest> {
+    const [savedRequest] = await db.insert(helpRequests).values(request).returning();
+    return savedRequest;
   }
 }
 

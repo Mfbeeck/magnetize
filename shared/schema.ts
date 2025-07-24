@@ -27,15 +27,31 @@ export const ideas = pgTable("ideas", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Help Requests table
+export const helpRequests = pgTable("help_requests", {
+  id: serial("id").primaryKey(),
+  ideaId: integer("idea_id").notNull().references(() => ideas.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+});
+
 // Define relationships
 export const magnetRequestsRelations = relations(magnetRequests, ({ many }) => ({
   ideas: many(ideas),
 }));
 
-export const ideasRelations = relations(ideas, ({ one }) => ({
+export const ideasRelations = relations(ideas, ({ one, many }) => ({
   magnetRequest: one(magnetRequests, {
     fields: [ideas.magnetRequestId],
     references: [magnetRequests.id],
+  }),
+  helpRequests: many(helpRequests),
+}));
+
+export const helpRequestsRelations = relations(helpRequests, ({ one }) => ({
+  idea: one(ideas, {
+    fields: [helpRequests.ideaId],
+    references: [ideas.id],
   }),
 }));
 
@@ -53,6 +69,11 @@ export const insertIdeaSchema = createInsertSchema(ideas).pick({
   detailedDescription: true,
   whyThis: true,
   complexityLevel: true,
+});
+
+export const insertHelpRequestSchema = createInsertSchema(helpRequests).pick({
+  ideaId: true,
+  email: true,
 });
 
 export const generateIdeasSchema = z.object({
@@ -80,5 +101,7 @@ export interface GenerateIdeasResponse {
 
 export type InsertMagnetRequest = z.infer<typeof insertMagnetRequestSchema>;
 export type InsertIdea = z.infer<typeof insertIdeaSchema>;
+export type InsertHelpRequest = z.infer<typeof insertHelpRequestSchema>;
 export type MagnetRequest = typeof magnetRequests.$inferSelect;
 export type Idea = typeof ideas.$inferSelect;
+export type HelpRequest = typeof helpRequests.$inferSelect;

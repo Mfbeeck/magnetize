@@ -2,7 +2,7 @@ import 'dotenv/config';
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateIdeasSchema, type LeadMagnetIdea } from "@shared/schema";
+import { generateIdeasSchema, insertHelpRequestSchema, type LeadMagnetIdea } from "@shared/schema";
 import OpenAI from "openai";
 
 const client = new OpenAI({ 
@@ -343,6 +343,39 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
       console.error("Error regenerating ideas:", error);
       res.status(500).json({ 
         error: "Failed to regenerate ideas", 
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/help-requests", async (req, res) => {
+    try {
+      const validatedData = insertHelpRequestSchema.parse(req.body);
+      const { ideaId, email } = validatedData;
+
+      // Verify the idea exists
+      const idea = await storage.getIdeaById(ideaId);
+      if (!idea) {
+        return res.status(404).json({ 
+          error: "Not found", 
+          message: "Idea not found" 
+        });
+      }
+
+      // Create the help request
+      const helpRequest = await storage.createHelpRequest({
+        ideaId,
+        email
+      });
+
+      res.json({ 
+        success: true,
+        helpRequest
+      });
+    } catch (error) {
+      console.error("Error creating help request:", error);
+      res.status(500).json({ 
+        error: "Failed to create help request", 
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

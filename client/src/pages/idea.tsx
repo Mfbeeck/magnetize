@@ -1,6 +1,6 @@
 import { useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Magnet, ArrowLeft, ExternalLink, Sparkles, Loader2, Link } from "lucide-react";
+import { Magnet, ArrowLeft, ExternalLink, Sparkles, Loader2, Link, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/queryClient";
 import { type LeadMagnetIdea } from "@shared/schema";
 import { SpecModal } from "@/components/spec-modal";
+import { HelpBuildModal } from "@/components/help-build-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
@@ -36,6 +37,7 @@ export default function Idea() {
   const queryClient = useQueryClient();
   const [isSpecModalOpen, setIsSpecModalOpen] = useState(false);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
+  const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", content: "" });
 
   const { data: idea, isLoading, error } = useQuery({
@@ -178,15 +180,26 @@ export default function Idea() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleShare}
-              className="text-slate-600 hover:text-slate-900"
-            >
-              <Link className="mr-2 h-4 w-4 text-blue-600" />
-              Share
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsHelpBuildModalOpen(true)}
+                className="text-slate-600 hover:text-slate-900"
+              >
+                <HelpCircle className="mr-2 h-4 w-4 text-green-600" />
+                Help me build this
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+                className="text-slate-600 hover:text-slate-900"
+              >
+                <Link className="mr-2 h-4 w-4 text-blue-600" />
+                Share
+              </Button>
+            </div>
           </div>
           <div className="mb-4">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">{idea.name}</h1>
@@ -230,92 +243,96 @@ export default function Idea() {
               Get Your AI-Ready Blueprint to Start Building This
             </CardTitle>
             <p className="text-sm text-blue-700 leading-relaxed">
-              Generate a ready-to-use technical plan that any AI coding assistant can understand. You'll get a detailed specification and build instructions that you can paste directly into tools like Claude, Lovable, or Replit to start building your lead magnet.
+              Generate a ready-to-use technical plan that any AI coding assistant can understand. You'll get a detailed specification and build instructions that you can paste directly into tools like{" "}
+              <a href="https://lovable.dev/?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Lovable</a>,{" "}
+              <a href="https://replit.com/~?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Replit</a>,{" "}
+              <a href="https://claude.ai?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Claude</a>, etc. to start building your lead magnet.
             </p>
           </CardHeader>
           <CardContent>
-            {!idea.magnetSpec && !idea.creationPrompt ? (
-              <Button
-                onClick={() => {
-                  const businessData = {
-                    prodDescription: idea.magnetRequest.prodDescription,
-                    targetAudience: idea.magnetRequest.targetAudience,
-                    location: idea.magnetRequest.location || ""
-                  };
-                  generateSpecMutation.mutate({ idea, businessData });
-                }}
-                disabled={generateSpecMutation.isPending}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                {generateSpecMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
+            <div className="flex flex-col lg:flex-row gap-3 items-start">
+              <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                {!idea.magnetSpec && !idea.creationPrompt ? (
+                  <Button
+                    onClick={() => {
+                      const businessData = {
+                        prodDescription: idea.magnetRequest.prodDescription,
+                        targetAudience: idea.magnetRequest.targetAudience,
+                        location: idea.magnetRequest.location || ""
+                      };
+                      generateSpecMutation.mutate({ idea, businessData });
+                    }}
+                    disabled={generateSpecMutation.isPending}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    {generateSpecMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      "Generate"
+                    )}
+                  </Button>
                 ) : (
-                  "Generate"
-                )}
-              </Button>
-            ) : (
-              <div className="flex gap-3">
-                {idea.magnetSpec && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setModalContent({
-                        title: "Technical Specification",
-                        content: idea.magnetSpec!
-                      });
-                      setIsSpecModalOpen(true);
-                    }}
-                    className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
-                  >
-                    View Technical Spec
-                  </Button>
-                )}
-                
-                {idea.creationPrompt && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setModalContent({
-                        title: "Build Prompt",
-                        content: idea.creationPrompt!
-                      });
-                      setIsPromptModalOpen(true);
-                    }}
-                    className="text-green-600 border-green-300 hover:bg-green-50 hover:border-green-400 bg-white"
-                  >
-                    View Build Prompt
-                  </Button>
+                  <>
+                    {idea.magnetSpec && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setModalContent({
+                            title: "Technical Specification",
+                            content: idea.magnetSpec!
+                          });
+                          setIsSpecModalOpen(true);
+                        }}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
+                      >
+                        View technical spec
+                      </Button>
+                    )}
+                    
+                    {idea.creationPrompt && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setModalContent({
+                            title: "Build Prompt",
+                            content: idea.creationPrompt!
+                          });
+                          setIsPromptModalOpen(true);
+                        }}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
+                      >
+                        View AI-ready prompt
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
-            )}
+              
+              <Button
+                variant="outline"
+                onClick={() => setIsHelpBuildModalOpen(true)}
+                className="text-slate-600 hover:text-slate-900 lg:self-end"
+              >
+                <HelpCircle className="mr-2 h-4 w-4 text-green-600" />
+                Help me build this
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex justify-center">
           <Button
             onClick={() => window.location.href = `/results/${idea.magnetRequest.publicId}`}
             variant="outline"
-            className="flex-1 sm:flex-none"
+            className="flex-1 sm:flex-none max-w-xs"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to all ideas
           </Button>
-          {idea.creationPrompt && (
-            <Button
-              onClick={() => {
-                // Open in a new tab with a coding tool
-                window.open('https://chat.openai.com', '_blank');
-              }}
-              className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700"
-            >
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Start Building with AI
-            </Button>
-          )}
         </div>
       </main>
 
@@ -333,6 +350,14 @@ export default function Idea() {
         onClose={() => setIsPromptModalOpen(false)}
         title={modalContent.title}
         content={modalContent.content}
+      />
+
+      {/* Help Build Modal */}
+      <HelpBuildModal
+        isOpen={isHelpBuildModalOpen}
+        onClose={() => setIsHelpBuildModalOpen(false)}
+        ideaName={idea.name}
+        ideaId={idea.id}
       />
     </div>
   );
