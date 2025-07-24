@@ -14,7 +14,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/generate-ideas", async (req, res) => {
     try {
       const validatedData = generateIdeasSchema.parse(req.body);
-      const { prodDescription, targetAudience, location } = validatedData;
+      const { prodDescription, targetAudience, location, businessUrl } = validatedData;
 
       const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
 
@@ -73,7 +73,8 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
       const magnetRequest = await storage.createMagnetRequest({
         prodDescription,
         targetAudience,
-        location: location || null
+        location: location || null,
+        businessUrl: businessUrl || null
       });
 
       // Save ideas to database
@@ -376,6 +377,62 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
       console.error("Error creating help request:", error);
       res.status(500).json({ 
         error: "Failed to create help request", 
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/autofill-business-profile", async (req, res) => {
+    try {
+      const { businessUrl } = req.body;
+      if (!businessUrl) {
+        return res.status(400).json({ error: "Missing businessUrl" });
+      }
+      const prompt = `You are a senior marketing strategist with strong web‑research skills.
+
+Task
+1. Visit and read the content from the following business website: ${businessUrl}.
+2. Based only on content from that website (no other sources), write:  
+   • prodDescription – 1‑3 concise sentences explaining the core product or service.  
+   • targetAudience – 1‑3 concise sentences describing the likely customers, inferred from the site's messaging.  
+   • confidence – an integer 1‑10 reflecting how certain you are about what the business does and who their target audience is (10 = very certain; 1 = no clear idea).
+
+Output  
+Return **exactly** this JSON—no commentary, no extra keys:
+
+{
+  "website": "{{website_url}}",
+  "prodDescription": "<your description>",
+  "targetAudience": "<your description>",
+  "confidence": <integer 1-10>
+}
+
+Guidelines  
+- ONLY view the homepage page of the website, no need for citations.
+- If the site is vague or confusing, lower the confidence score.  
+- Keep language direct and free of marketing fluff.  
+- Only return the JSON object, no other text or sources needed.`;
+      // Use OpenAI o4-mini with web_search_preview tool
+      const response = await client.responses.create({
+        model: "gpt-4.1",
+        input: prompt,
+        tools: [{ type: "web_search_preview" }]
+      });
+      const rawOutputText = response.output_text;
+      const result = JSON.parse(rawOutputText || "{}");
+      if (!result.prodDescription || !result.targetAudience) {
+        throw new Error("AI did not return expected fields");
+      }
+      res.json({
+        prodDescription: result.prodDescription,
+        targetAudience: result.targetAudience,
+        confidence: result.confidence,
+        website: result.website
+      });
+    } catch (error) {
+      console.error("Error in autofill-business-profile:", error);
+      res.status(500).json({
+        error: "Failed to autofill business profile",
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

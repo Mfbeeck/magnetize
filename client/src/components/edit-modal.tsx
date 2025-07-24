@@ -12,6 +12,7 @@ type FormData = {
   prodDescription: string;
   targetAudience: string;
   location?: string;
+  businessUrl?: string;
 };
 
 interface EditModalProps {
@@ -63,11 +64,31 @@ export function EditModal({ isOpen, onClose, onSubmit, initialData }: EditModalP
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
+                name="businessUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium text-slate-700">
+                      Website URL <span className="text-slate-400">(Optional)</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="https://example.com"
+                        type="url"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="prodDescription"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium text-slate-700">
-                      Business Type <span className="text-red-500">*</span>
+                      Product or Service Description <span className="text-red-500">*</span>
                     </FormLabel>
                     <FormControl>
                       <Textarea

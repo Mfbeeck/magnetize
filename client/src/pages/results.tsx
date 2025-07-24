@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Magnet, Edit, RefreshCw, ArrowLeft, Link } from "lucide-react";
+import { ExternalLink, Magnet, Edit, RefreshCw, ArrowLeft, Link, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { generateShareUrl, isFromShareLink } from "@/lib/utils";
 import { type LeadMagnetIdea } from "@shared/schema";
 import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
@@ -22,6 +23,7 @@ interface MagnetRequest {
   location: string | null;
   createdAt: string;
   ideas: Array<LeadMagnetIdea & { id: number }>;
+  businessUrl?: string;
 }
 
 export default function Results() {
@@ -144,7 +146,8 @@ export default function Results() {
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const shareUrl = generateShareUrl(window.location.pathname, 'result');
+      await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "Results URL copied to clipboard",
         description: "Send it to anyone who might be interested!",
@@ -239,6 +242,14 @@ export default function Results() {
               >
                 About
               </button>
+              {isFromShareLink() && (
+                <Button
+                  onClick={() => window.location.href = "/"}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  Get Free Lead Magnet Ideas
+                </Button>
+              )}
             </nav>
           </div>
         </div>
@@ -280,34 +291,46 @@ export default function Results() {
         {/* User Input Summary */}
         <Card className="bg-white shadow-sm border border-slate-200 mb-8">
           <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Business Profile</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm font-medium text-slate-500">Product or Service Description:</span>
-                    <p className="text-slate-900 mt-1">{magnetRequest.prodDescription}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-500">Target Audience:</span>
-                    <p className="text-slate-900 mt-1">{magnetRequest.targetAudience}</p>
-                  </div>
-                  {magnetRequest.location && (
-                    <div className="md:col-span-2">
-                      <span className="text-sm font-medium text-slate-500">Location:</span>
-                      <p className="text-slate-900 mt-1">{magnetRequest.location}</p>
-                    </div>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-1">
+                  Business Profile{magnetRequest.businessUrl && (
+                    <span className="text-blue-600 font-normal">: 
+                      <a 
+                        href={magnetRequest.businessUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="font-medium inline-flex items-center ml-1"
+                      >
+                        {new URL(magnetRequest.businessUrl).hostname}
+                        <ExternalLink className="h-4 w-4 ml-1" />
+                      </a>
+                    </span>
                   )}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm text-slate-600">{magnetRequest.location || "No location specified"}</span>
                 </div>
               </div>
               <Button
                 variant="outline"
                 onClick={() => setIsModalOpen(true)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700"
+                className="text-slate-600 hover:text-slate-900"
               >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-slate-600 mb-2">Product or Service Description:</span>
+                <p className="text-slate-900 mt-1 p-3 bg-slate-50 rounded-md flex-1 min-h-[80px]">{magnetRequest.prodDescription}</p>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-slate-600 mb-2">Target Audience:</span>
+                <p className="text-slate-900 mt-1 p-3 bg-slate-50 rounded-md flex-1 min-h-[80px]">{magnetRequest.targetAudience}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -374,7 +397,8 @@ export default function Results() {
           initialData={{
             prodDescription: magnetRequest.prodDescription,
             targetAudience: magnetRequest.targetAudience,
-            location: magnetRequest.location || ""
+            location: magnetRequest.location || "",
+            businessUrl: magnetRequest.businessUrl || ""
           }}
         />
 

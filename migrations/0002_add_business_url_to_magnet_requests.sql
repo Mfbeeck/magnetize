@@ -1,0 +1,1 @@
+ALTER TABLE magnet_requests ADD COLUMN IF NOT EXISTS business_url text; 

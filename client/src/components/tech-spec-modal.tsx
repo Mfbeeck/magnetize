@@ -3,15 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface SpecModalProps {
+interface TechSpecModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
   content: string;
-  leadMagnetTitle?: string;
+  leadMagnetTitle: string;
 }
 
-export function SpecModal({ isOpen, onClose, title, content, leadMagnetTitle }: SpecModalProps) {
+export function TechSpecModal({ isOpen, onClose, content, leadMagnetTitle }: TechSpecModalProps) {
   const { toast } = useToast();
 
   // Handle undefined or null content
@@ -40,13 +39,10 @@ export function SpecModal({ isOpen, onClose, title, content, leadMagnetTitle }: 
         <DialogHeader>
           <div className="flex-1">
             <DialogTitle className="text-xl font-semibold text-slate-900">
-              AI-Ready Build Prompt: {leadMagnetTitle}
+              Technical Spec: {leadMagnetTitle}
             </DialogTitle>
             <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-              To start building a prototype for this lead magnet, copy and paste the prompt into an AI builder like{" "}
-              <a href="https://lovable.dev/?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">Lovable</a>,{" "}
-              <a href="https://replit.com/~?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">Replit</a>,{" "}
-              <a href="https://claude.ai?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">Claude</a>, etc.
+              To start building a prototype with an engineer for this lead magnet, copy and send them this technical spec.
             </p>
           </div>
         </DialogHeader>

@@ -63,7 +63,8 @@ export class SupabaseStorage implements IStorage {
     const [savedRequest] = await db.insert(magnetRequests).values({
       ...request,
       publicId,
-      location: request.location || null
+      location: request.location || null,
+      businessUrl: request.businessUrl || null
     }).returning();
     
     return savedRequest;

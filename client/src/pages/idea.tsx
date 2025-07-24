@@ -1,14 +1,17 @@
 import { useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Magnet, ArrowLeft, ExternalLink, Sparkles, Loader2, Link, HelpCircle } from "lucide-react";
+import { Magnet, ArrowLeft, ExternalLink, Sparkles, Loader2, Link, HelpCircle, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/queryClient";
+import { generateShareUrl, isFromShareLink } from "@/lib/utils";
 import { type LeadMagnetIdea } from "@shared/schema";
 import { SpecModal } from "@/components/spec-modal";
+import { TechSpecModal } from "@/components/tech-spec-modal";
 import { HelpBuildModal } from "@/components/help-build-modal";
+import { AboutModal } from "@/components/about-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
@@ -35,9 +38,10 @@ export default function Idea() {
   const [, params] = useRoute<{ id: string }>("/results/:publicId/ideas/:id");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isSpecModalOpen, setIsSpecModalOpen] = useState(false);
+  const [isTechSpecModalOpen, setIsTechSpecModalOpen] = useState(false);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", content: "" });
 
   const { data: idea, isLoading, error } = useQuery({
@@ -69,6 +73,7 @@ export default function Idea() {
       toast({
         title: "AI-ready blueprint generated!",
         description: "Your detailed technical specification and build prompt are ready.",
+        duration: 5000,
       });
       
       // Scroll to bottom after a short delay to ensure new content is rendered
@@ -90,7 +95,8 @@ export default function Idea() {
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const shareUrl = generateShareUrl(window.location.pathname, 'idea');
+      await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "Idea URL copied to clipboard",
         description: "Send it to anyone who might be interested!",
@@ -163,6 +169,22 @@ export default function Idea() {
               </div>
               <h1 className="text-xl font-bold text-slate-900">Magnetize</h1>
             </button>
+            <nav className="flex items-center space-x-6">
+              <button
+                onClick={() => setIsAboutModalOpen(true)}
+                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
+              >
+                About
+              </button>
+              {isFromShareLink() && (
+                <Button
+                  onClick={() => window.location.href = "/"}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  Get Free Lead Magnet Ideas
+                </Button>
+              )}
+            </nav>
           </div>
         </div>
       </header>
@@ -205,12 +227,12 @@ export default function Idea() {
             <h1 className="text-3xl font-bold text-slate-900 mb-2">{idea.name}</h1>
             <p className="text-xl text-slate-600 mb-4">{idea.summary}</p>
             <div className="flex items-center gap-4">
-              <Badge className={getComplexityColor(idea.complexityLevel)}>
-                {idea.complexityLevel}
-              </Badge>
-              <span className="text-sm text-slate-500">
-                Created {new Date(idea.createdAt).toLocaleDateString()}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600 font-medium">Complexity Level:</span>
+                <Badge className={getComplexityColor(idea.complexityLevel)}>
+                  {idea.complexityLevel}
+                </Badge>
+              </div>
             </div>
           </div>
         </div>
@@ -238,15 +260,14 @@ export default function Idea() {
         {/* Generate AI-Ready Blueprint */}
         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 mb-8">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-lg">
               Get Your AI-Ready Blueprint to Start Building This
             </CardTitle>
             <p className="text-sm text-blue-700 leading-relaxed">
               Generate a ready-to-use technical plan that any AI coding assistant can understand. You'll get a detailed specification and build instructions that you can paste directly into tools like{" "}
               <a href="https://lovable.dev/?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Lovable</a>,{" "}
               <a href="https://replit.com/~?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Replit</a>,{" "}
-              <a href="https://claude.ai?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Claude</a>, etc. to start building your lead magnet.
+              <a href="https://claude.ai?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Claude</a>, etc. to start building your lead magnet today. If you need our help building it, click the "Help me build this" button below.
             </p>
           </CardHeader>
           <CardContent>
@@ -271,27 +292,14 @@ export default function Idea() {
                         Generating...
                       </>
                     ) : (
-                      "Generate"
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate
+                      </>
                     )}
                   </Button>
                 ) : (
-                  <>
-                    {idea.magnetSpec && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setModalContent({
-                            title: "Technical Specification",
-                            content: idea.magnetSpec!
-                          });
-                          setIsSpecModalOpen(true);
-                        }}
-                        className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
-                      >
-                        View technical spec
-                      </Button>
-                    )}
-                    
+                  <>                  
                     {idea.creationPrompt && (
                       <Button
                         variant="outline"
@@ -305,6 +313,17 @@ export default function Idea() {
                         className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
                       >
                         View AI-ready prompt
+                      </Button>
+                    )}
+                    {idea.magnetSpec && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsTechSpecModalOpen(true);
+                        }}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
+                      >
+                        View technical spec
                       </Button>
                     )}
                   </>
@@ -336,12 +355,12 @@ export default function Idea() {
         </div>
       </main>
 
-      {/* Spec Modal */}
-      <SpecModal
-        isOpen={isSpecModalOpen}
-        onClose={() => setIsSpecModalOpen(false)}
-        title={modalContent.title}
-        content={modalContent.content}
+      {/* Tech Spec Modal */}
+      <TechSpecModal
+        isOpen={isTechSpecModalOpen}
+        onClose={() => setIsTechSpecModalOpen(false)}
+        content={idea.magnetSpec || ""}
+        leadMagnetTitle={idea.name}
       />
 
       {/* Prompt Modal */}
@@ -350,6 +369,7 @@ export default function Idea() {
         onClose={() => setIsPromptModalOpen(false)}
         title={modalContent.title}
         content={modalContent.content}
+        leadMagnetTitle={idea.name}
       />
 
       {/* Help Build Modal */}
@@ -358,6 +378,12 @@ export default function Idea() {
         onClose={() => setIsHelpBuildModalOpen(false)}
         ideaName={idea.name}
         ideaId={idea.id}
+      />
+
+      {/* About Modal */}
+      <AboutModal
+        isOpen={isAboutModalOpen}
+        onClose={() => setIsAboutModalOpen(false)}
       />
     </div>
   );
