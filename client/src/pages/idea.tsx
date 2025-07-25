@@ -54,6 +54,16 @@ export default function Idea() {
     enabled: !!params?.id,
   });
 
+  // Set dynamic page title based on idea name
+  useEffect(() => {
+    if (idea?.name) {
+      document.title = `Magnetize - ${idea.name}`;
+    } else {
+      // Fallback when idea data is not available
+      document.title = "Magnetize - Lead Magnet Ideas";
+    }
+  }, [idea?.name]);
+
   const generateSpecMutation = useMutation({
     mutationFn: async ({ idea, businessData }: { idea: IdeaWithMagnetRequest; businessData: any }) => {
       const response = await apiRequest("POST", "/api/generate-spec", { 

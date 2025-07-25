@@ -39,6 +39,11 @@ export default function Home() {
   const [isAutofilling, setIsAutofilling] = useState(false);
   const { toast } = useToast();
 
+  // Set page title
+  useEffect(() => {
+    document.title = "Magnetize - Lead Magnet Idea Generator";
+  }, []);
+
   const form = useForm<FormData>({
     resolver: zodResolver(generateIdeasSchema),
     defaultValues: {

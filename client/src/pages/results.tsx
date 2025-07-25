@@ -56,6 +56,23 @@ export default function Results() {
     }
   }, [magnetRequest?.ideas, activeFilters]);
 
+  // Set dynamic page title based on business URL domain
+  useEffect(() => {
+    if (magnetRequest?.businessUrl) {
+      try {
+        const url = new URL(magnetRequest.businessUrl);
+        const domain = url.hostname.replace('www.', '');
+        document.title = `Magnetize - ${domain}`;
+      } catch (error) {
+        // Fallback if URL parsing fails
+        document.title = "Magnetize - Lead Magnet Ideas";
+      }
+    } else {
+      // Fallback when no business URL is available
+      document.title = "Magnetize - Lead Magnet Ideas";
+    }
+  }, [magnetRequest?.businessUrl]);
+
   // Progress simulation effect for regeneration
   useEffect(() => {
     if (isRegenerating) {
