@@ -10,7 +10,7 @@ export const magnetRequests = pgTable("magnet_requests", {
   prodDescription: text("prod_description").notNull(),
   targetAudience: text("target_audience").notNull(),
   location: text("location"),
-  businessUrl: text("business_url"), // Optional business website
+  businessUrl: text("business_url").notNull(), // Required business website
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -82,7 +82,7 @@ export const generateIdeasSchema = z.object({
   prodDescription: z.string().min(1, "Product description is required"),
   targetAudience: z.string().min(1, "Target audience is required"),
   location: z.string().optional(),
-  businessUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")).or(z.null()),
+  businessUrl: z.string().url("Must be a valid URL").min(1, "Business website URL is required"),
 });
 
 export interface LeadMagnetIdea {
@@ -100,12 +100,12 @@ export interface GenerateIdeasResponse {
   ideas: LeadMagnetIdea[];
   magnetRequestId: number;
   publicId: string;
-  businessUrl?: string | null;
+  businessUrl: string;
 }
 
 export type InsertMagnetRequest = z.infer<typeof insertMagnetRequestSchema>;
 export type InsertIdea = z.infer<typeof insertIdeaSchema>;
 export type InsertHelpRequest = z.infer<typeof insertHelpRequestSchema>;
-export type MagnetRequest = typeof magnetRequests.$inferSelect & { businessUrl?: string | null };
+export type MagnetRequest = typeof magnetRequests.$inferSelect;
 export type Idea = typeof ideas.$inferSelect;
 export type HelpRequest = typeof helpRequests.$inferSelect;

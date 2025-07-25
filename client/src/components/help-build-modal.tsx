@@ -53,7 +53,8 @@ export function HelpBuildModal({ isOpen, onClose, ideaName, ideaId }: HelpBuildM
       
       toast({
         title: "We'll be in touch!",
-        description: "Thanks for reaching out. We'll contact you soon to help you build this.",
+        description: "We've received your request and will follow up shortly to discuss building your lead magnet. Check your email for more details.",
+        duration: 5000,
       });
       
       setEmail("");

@@ -12,7 +12,7 @@ type FormData = {
   prodDescription: string;
   targetAudience: string;
   location?: string;
-  businessUrl?: string;
+  businessUrl: string;
 };
 
 interface EditModalProps {
@@ -68,7 +68,7 @@ export function EditModal({ isOpen, onClose, onSubmit, initialData }: EditModalP
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium text-slate-700">
-                      Website URL <span className="text-slate-400">(Optional)</span>
+                      Website URL <span className="text-red-500">*</span>
                     </FormLabel>
                     <FormControl>
                       <Input 

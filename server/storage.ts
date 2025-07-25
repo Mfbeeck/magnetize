@@ -64,7 +64,7 @@ export class SupabaseStorage implements IStorage {
       ...request,
       publicId,
       location: request.location || null,
-      businessUrl: request.businessUrl || null
+      businessUrl: request.businessUrl
     }).returning();
     
     return savedRequest;

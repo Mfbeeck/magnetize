@@ -1,16 +1,18 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, HelpCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { type LeadMagnetIdea } from "@shared/schema";
 
 interface IdeaCardProps {
   idea: LeadMagnetIdea & { id?: number };
   onViewDetails: () => void;
+  onHelpBuild?: () => void;
   publicId?: string;
 }
 
-export function IdeaCard({ idea, onViewDetails, publicId }: IdeaCardProps) {
+export function IdeaCard({ idea, onViewDetails, onHelpBuild, publicId }: IdeaCardProps) {
   const getComplexityColor = (level: string) => {
     switch (level.toLowerCase()) {
       case "simple":
@@ -25,7 +27,7 @@ export function IdeaCard({ idea, onViewDetails, publicId }: IdeaCardProps) {
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent triggering when clicking the button
+    // Prevent triggering when clicking the buttons
     if ((e.target as HTMLElement).closest('button')) {
       return;
     }
@@ -53,21 +55,46 @@ export function IdeaCard({ idea, onViewDetails, publicId }: IdeaCardProps) {
           <p className="text-sm text-slate-700 leading-relaxed">{idea.summary}</p>
         </div>
 
-        <Button 
-          variant="outline" 
-          onClick={(e) => {
-            e.stopPropagation();
-            if (publicId && idea.id) {
-              window.location.href = `/results/${publicId}/ideas/${idea.id}`;
-            } else {
-              onViewDetails();
-            }
-          }}
-          className="w-full mt-6 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
-        >
-          More Details
-          <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
+        <div className="flex gap-2 mt-6">
+          <Button 
+            variant="outline" 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (publicId && idea.id) {
+                window.location.href = `/results/${publicId}/ideas/${idea.id}`;
+              } else {
+                onViewDetails();
+              }
+            }}
+            className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+          >
+            More Details
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+          
+          {onHelpBuild && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onHelpBuild();
+                    }}
+                    className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                  >
+                    <HelpCircle className="h-4 w-4 text-green-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-slate-900 text-white border-slate-900">
+                  <p>Help me build this</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

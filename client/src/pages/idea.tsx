@@ -1,6 +1,6 @@
 import { useRoute } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Magnet, ArrowLeft, ExternalLink, Sparkles, Loader2, Link, HelpCircle, Eye } from "lucide-react";
+import { Magnet, ArrowLeft, ExternalLink, Sparkles, Loader2, Link, HelpCircle, Eye, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { SpecModal } from "@/components/spec-modal";
 import { TechSpecModal } from "@/components/tech-spec-modal";
 import { HelpBuildModal } from "@/components/help-build-modal";
 import { AboutModal } from "@/components/about-modal";
+import { BusinessProfileModal } from "@/components/business-profile-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
@@ -31,6 +32,7 @@ interface IdeaWithMagnetRequest {
     prodDescription: string;
     targetAudience: string;
     location: string | null;
+    businessUrl: string;
   };
 }
 
@@ -42,6 +44,7 @@ export default function Idea() {
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [isBusinessProfileModalOpen, setIsBusinessProfileModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", content: "" });
 
   const { data: idea, isLoading, error } = useQuery({
@@ -136,12 +139,10 @@ export default function Idea() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-slate-600">Loading idea...</p>
-          </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Loading idea...</p>
         </div>
       </div>
     );
@@ -244,13 +245,24 @@ export default function Idea() {
                 </Badge>
               </div>
             </div>
+            <div className="mt-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600 font-medium">Business:</span>
+                <button
+                  onClick={() => setIsBusinessProfileModalOpen(true)}
+                  className="text-blue-600 hover:text-blue-800 underline text-sm"
+                >
+                  {idea.magnetRequest.businessUrl ? new URL(idea.magnetRequest.businessUrl).hostname : 'View Profile'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Detailed Description */}
         <Card className="bg-white shadow-sm border border-slate-200 mb-8">
           <CardHeader>
-            <CardTitle className="text-lg">Detailed Description</CardTitle>
+            <CardTitle className="text-lg">Lead Magnet Details</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-slate-700 leading-relaxed">{idea.detailedDescription}</p>
@@ -326,15 +338,14 @@ export default function Idea() {
                       </Button>
                     )}
                     {idea.magnetSpec && (
-                      <Button
-                        variant="outline"
+                      <button
                         onClick={() => {
                           setIsTechSpecModalOpen(true);
                         }}
-                        className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
+                        className="text-blue-600 hover:text-blue-800 text-sm transition-colors duration-200 font-medium"
                       >
                         View technical spec
-                      </Button>
+                      </button>
                     )}
                   </>
                 )}
@@ -394,6 +405,18 @@ export default function Idea() {
       <AboutModal
         isOpen={isAboutModalOpen}
         onClose={() => setIsAboutModalOpen(false)}
+      />
+
+      {/* Business Profile Modal */}
+      <BusinessProfileModal
+        isOpen={isBusinessProfileModalOpen}
+        onClose={() => setIsBusinessProfileModalOpen(false)}
+        businessData={{
+          prodDescription: idea.magnetRequest.prodDescription,
+          targetAudience: idea.magnetRequest.targetAudience,
+          location: idea.magnetRequest.location,
+          businessUrl: idea.magnetRequest.businessUrl
+        }}
       />
     </div>
   );

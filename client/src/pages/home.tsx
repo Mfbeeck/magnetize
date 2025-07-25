@@ -18,12 +18,13 @@ import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
 import { IdeaDetailModal } from "@/components/idea-detail-modal";
 import { AboutModal } from "@/components/about-modal";
+import { HelpBuildModal } from "@/components/help-build-modal";
 
 type FormData = {
   prodDescription: string;
   targetAudience: string;
   location?: string;
-  businessUrl?: string;
+  businessUrl: string;
 };
 
 export default function Home() {
@@ -32,6 +33,7 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
   const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
   const [currentData, setCurrentData] = useState<FormData | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['Simple', 'Moderate', 'Advanced']));
@@ -135,6 +137,11 @@ export default function Home() {
     setIsDetailModalOpen(true);
   };
 
+  const handleHelpBuild = (idea: LeadMagnetIdea) => {
+    setSelectedIdea(idea);
+    setIsHelpBuildModalOpen(true);
+  };
+
   const getComplexityColor = (level: string) => {
     switch (level.toLowerCase()) {
       case "simple":
@@ -162,9 +169,9 @@ export default function Home() {
   // Autofill with AI handler
   const handleAutofillWithAI = async () => {
     const businessUrl = form.getValues("businessUrl");
-    if (!businessUrl) {
+    if (!businessUrl || !isValidUrl(businessUrl)) {
       toast({
-        title: "Please enter a business website URL first.",
+        title: "Please enter a valid business website URL first.",
         variant: "destructive",
       });
       return;
@@ -258,7 +265,7 @@ export default function Home() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-sm font-medium text-slate-700">
-                            Website URL <span className="text-slate-400">(Optional)</span>
+                            Website URL <span className="text-red-500">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
@@ -312,13 +319,13 @@ export default function Home() {
                           </TooltipTrigger>
                           {(!form.watch("businessUrl") || !isValidUrl(form.watch("businessUrl"))) && (
                             <TooltipContent side="top" align="start" className="bg-slate-900 text-white border-slate-900">
-                              <p>Fill in the website URL to use autofill</p>
+                              <p>Enter a valid website URL to use autofill</p>
                             </TooltipContent>
                           )}
                         </Tooltip>
                       </TooltipProvider>
                       <p className="text-xs text-slate-500 mt-1">
-                        AI will analyze your website and automatically fill in the required product/service description and target audience fields below.
+                        AI will analyze your website and automatically fill in the product/service description and target audience fields below.
                       </p>
                     </div>
 
@@ -415,7 +422,8 @@ export default function Home() {
                               (Boolean(generateIdeasMutation.isPending) ||
                                 !form.watch("prodDescription") ||
                                 !form.watch("targetAudience") ||
-                                (Boolean(form.watch("businessUrl")?.trim()) && !isValidUrl(form.watch("businessUrl"))))
+                                !form.watch("businessUrl") ||
+                                !isValidUrl(form.watch("businessUrl")))
                                 ? "cursor-not-allowed" 
                                 : ""
                             }`}
@@ -426,7 +434,8 @@ export default function Home() {
                                 (Boolean(generateIdeasMutation.isPending) ||
                                   !form.watch("prodDescription") ||
                                   !form.watch("targetAudience") ||
-                                  (Boolean(form.watch("businessUrl")?.trim()) && !isValidUrl(form.watch("businessUrl"))))
+                                  !form.watch("businessUrl") ||
+                                  !isValidUrl(form.watch("businessUrl")))
                                   ? "opacity-50 pointer-events-auto" 
                                   : ""
                               }`}
@@ -434,7 +443,8 @@ export default function Home() {
                                 Boolean(generateIdeasMutation.isPending) ||
                                 !form.watch("prodDescription") ||
                                 !form.watch("targetAudience") ||
-                                (Boolean(form.watch("businessUrl")?.trim()) && !isValidUrl(form.watch("businessUrl")))
+                                !form.watch("businessUrl") ||
+                                !isValidUrl(form.watch("businessUrl"))
                               }
                             >
                               Get Lead Magnet Ideas
@@ -444,7 +454,8 @@ export default function Home() {
                         {(Boolean(generateIdeasMutation.isPending) ||
                           !form.watch("prodDescription") ||
                           !form.watch("targetAudience") ||
-                          (Boolean(form.watch("businessUrl")?.trim()) && !isValidUrl(form.watch("businessUrl")))) && (
+                          !form.watch("businessUrl") ||
+                          !isValidUrl(form.watch("businessUrl"))) && (
                           <TooltipContent side="top" align="start" sideOffset={26} className="bg-slate-900 text-white border-slate-900">
                             <p>Please fill in all of the required fields to get lead magnet ideas</p>
                           </TooltipContent>
@@ -565,7 +576,12 @@ export default function Home() {
             {/* Ideas Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
               {filteredIdeas.map((idea, index) => (
-                <IdeaCard key={index} idea={idea} onViewDetails={() => handleViewDetails(idea)} />
+                <IdeaCard 
+                  key={index} 
+                  idea={idea} 
+                  onViewDetails={() => handleViewDetails(idea)} 
+                  onHelpBuild={() => handleHelpBuild(idea)}
+                />
               ))}
             </div>
 
@@ -611,6 +627,16 @@ export default function Home() {
           isOpen={isAboutModalOpen}
           onClose={() => setIsAboutModalOpen(false)}
         />
+
+        {/* Help Build Modal */}
+        {selectedIdea && (
+          <HelpBuildModal
+            isOpen={isHelpBuildModalOpen}
+            onClose={() => setIsHelpBuildModalOpen(false)}
+            ideaName={selectedIdea.name}
+            ideaId={selectedIdea.id || 0}
+          />
+        )}
       </main>
     </div>
   );

@@ -4,10 +4,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateIdeasSchema, insertHelpRequestSchema, type LeadMagnetIdea } from "@shared/schema";
 import OpenAI from "openai";
+import { Resend } from 'resend';
 
 const client = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
 });
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -74,7 +77,7 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         prodDescription,
         targetAudience,
         location: location || null,
-        businessUrl: businessUrl || null
+        businessUrl: businessUrl
       });
 
       // Save ideas to database
@@ -255,7 +258,7 @@ Return as a JSON object with two properties: "magnetSpec" (containing the techni
   app.post("/api/regenerate-ideas", async (req, res) => {
     try {
       const validatedData = generateIdeasSchema.parse(req.body);
-      const { prodDescription, targetAudience, location } = validatedData;
+      const { prodDescription, targetAudience, location, businessUrl } = validatedData;
 
       const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
 
@@ -314,7 +317,8 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
       const magnetRequest = await storage.createMagnetRequest({
         prodDescription,
         targetAudience,
-        location: location || null
+        location: location || null,
+        businessUrl
       });
 
       // Save ideas to database
@@ -368,6 +372,104 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         ideaId,
         email
       });
+
+      // Send email notification
+      try {
+        if (!resend) {
+          console.warn("Resend API key not configured, skipping email send");
+          return;
+        }
+
+        // Extract domain name from business URL
+        let domainName = "Magnetize";
+        try {
+          const businessUrl = new URL(idea.magnetRequest.businessUrl);
+          domainName = businessUrl.hostname.replace('www.', '');
+        } catch (error) {
+          console.warn("Could not parse business URL for domain extraction:", error);
+        }
+
+        // Construct idea URL
+        const ideaUrl = `${req.protocol}://${req.get('host')}/results/${idea.magnetRequest.publicId}/ideas/${idea.id}`;
+
+        // Send email using Resend
+        await resend.emails.send({
+          from: 'Magnetize Team <team@mbuild-software.com>',
+          to: [email],
+          cc: ['team@mbuild-software.com'],
+          bcc: ['mfbeeck@gmail.com'],
+          subject: `We got your request, let's explore your ${idea.name} lead magnet!`,
+          text: `Hey there,
+
+Thanks for reaching out about the "${idea.name}" idea for ${domainName}.
+
+We love building value-first tools like this and are eager to discuss how we can help you bring it to life.
+
+What happens next
+
+1. 15-30 min chat – within the next 48 hours we'll email you to schedule a quick call where we'll explore the project, clarify outcomes, and decide how we can best help.
+
+2. Scope & timeline – if it's a fit, we'll follow up with a short proposal outlining deliverables, schedule, and investment.
+
+3. Build & launch – if you're happy with the plan, we'll get rolling and keep you updated at every milestone.
+
+Meanwhile, you can review your idea details here: ${ideaUrl}
+
+Talk soon!
+
+Best,
+Matias + the Magnetize team
+https://leadmagnet.build`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0; padding: 20px; color: #333; line-height: 1.6; font-size: 14px;">
+              <p style="margin-bottom: 20px;">
+                Hey there,
+              </p>
+              
+              <p style="margin-bottom: 20px;">
+                Thanks for reaching out about the "${idea.name}" idea for ${domainName}.
+              </p>
+              
+              <p style="margin-bottom: 20px;">
+                We love building value-first tools like this and are eager to discuss how we can help you bring it to life.
+              </p>
+              
+              <p style="margin: 30px 0 15px 0; font-weight: bold;">What happens next</p>
+              
+              <p style="margin-bottom: 15px;">
+                1. <strong>15-30 min chat</strong> – within the next 48 hours we'll email you to schedule a quick call where we'll explore the project, clarify outcomes, and decide how we can best help.
+              </p>
+              
+              <p style="margin-bottom: 15px;">
+                2. <strong>Scope & timeline</strong> – if it's a fit, we'll follow up with a short proposal outlining deliverables, schedule, and investment.
+              </p>
+              
+              <p style="margin-bottom: 20px;">
+                3. <strong>Build & launch</strong> – if you're happy with the plan, we'll get rolling and keep you updated at every milestone.
+              </p>
+              
+              <p style="margin-bottom: 20px;">
+                Meanwhile, you can review your idea details here: <a href="${ideaUrl}" style="color: #0066cc;">${idea.name}</a>.
+              </p>
+              
+              <p style="margin-bottom: 20px;">
+                Talk soon!
+              </p>
+              
+              <p style="margin-bottom: 20px;">
+                Best,<br>
+                Matias + the Magnetize team
+                <a href="https://leadmagnet.build" style="color: #0066cc;">leadmagnet.build</a>
+              </p>
+            </div>
+          `
+        });
+
+        console.log(`Email sent successfully to ${email} for idea: ${idea.name}`);
+      } catch (emailError) {
+        console.error("Error sending email:", emailError);
+        // Don't fail the request if email fails, just log the error
+      }
 
       res.json({ 
         success: true,

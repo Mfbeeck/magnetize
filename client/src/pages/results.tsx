@@ -14,6 +14,7 @@ import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
 import { IdeaDetailModal } from "@/components/idea-detail-modal";
 import { AboutModal } from "@/components/about-modal";
+import { HelpBuildModal } from "@/components/help-build-modal";
 
 interface MagnetRequest {
   id: number;
@@ -23,7 +24,7 @@ interface MagnetRequest {
   location: string | null;
   createdAt: string;
   ideas: Array<LeadMagnetIdea & { id: number }>;
-  businessUrl?: string;
+  businessUrl: string;
 }
 
 export default function Results() {
@@ -31,6 +32,7 @@ export default function Results() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
   const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
   const [filteredIdeas, setFilteredIdeas] = useState<LeadMagnetIdea[]>([]);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['Simple', 'Moderate', 'Advanced']));
@@ -48,10 +50,12 @@ export default function Results() {
     enabled: !!params?.publicId,
   });
 
-  // Filter ideas based on active filters
+  // Filter ideas based on active filters and sort by ID
   useEffect(() => {
     if (magnetRequest?.ideas) {
-      const filtered = magnetRequest.ideas.filter(idea => activeFilters.has(idea.complexityLevel));
+      const filtered = magnetRequest.ideas
+        .filter(idea => activeFilters.has(idea.complexityLevel))
+        .sort((a, b) => a.id - b.id);
       setFilteredIdeas(filtered);
     }
   }, [magnetRequest?.ideas, activeFilters]);
@@ -194,6 +198,11 @@ export default function Results() {
     setIsDetailModalOpen(true);
   };
 
+  const handleHelpBuild = (idea: LeadMagnetIdea) => {
+    setSelectedIdea(idea);
+    setIsHelpBuildModalOpen(true);
+  };
+
   const getComplexityColor = (level: string) => {
     switch (level.toLowerCase()) {
       case "simple":
@@ -209,12 +218,10 @@ export default function Results() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-slate-600">Loading results...</p>
-          </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Loading results...</p>
         </div>
       </div>
     );
@@ -394,6 +401,7 @@ export default function Results() {
               key={idea.id} 
               idea={idea} 
               onViewDetails={() => handleViewDetails(idea)} 
+              onHelpBuild={() => handleHelpBuild(idea)}
               publicId={magnetRequest.publicId}
             />
           ))}
@@ -436,6 +444,16 @@ export default function Results() {
           isOpen={isAboutModalOpen}
           onClose={() => setIsAboutModalOpen(false)}
         />
+
+        {/* Help Build Modal */}
+        {selectedIdea && (
+          <HelpBuildModal
+            isOpen={isHelpBuildModalOpen}
+            onClose={() => setIsHelpBuildModalOpen(false)}
+            ideaName={selectedIdea.name}
+            ideaId={selectedIdea.id || 0}
+          />
+        )}
       </main>
     </div>
   );
