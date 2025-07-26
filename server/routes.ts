@@ -36,7 +36,7 @@ For each idea, provide:
 - Lead Magnet Name: creative, but self-explanatory
 - Summary: what it is in 1-2 sentences
 - Detailed Description: a more detailed explainer of the lead magnet, 4-6 sentences long
-- Why This: Explain why this lead magnet makes sense for your business by describing the value it provides the audience and how it relates to what the business does. This should be 3-6 sentences that explain why the audience would find this valuable and how it relates to the business' products or services.
+- Why This: Explain why this lead magnet makes sense for the business being analyzed. This should be 3-6 sentences that explain why the target audience mentioned in the business context would find this valuable and how it relates to that business' product or service offering.
 - Complexity Level: Simple/Moderate/Advanced
 
 Make sure to include at least 1 idea for each complexity level.
