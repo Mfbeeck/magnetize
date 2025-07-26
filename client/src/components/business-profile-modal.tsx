@@ -31,12 +31,23 @@ export function BusinessProfileModal({ isOpen, onClose, businessData }: Business
               </h4>
               <div className="flex items-center gap-2">
                 <a 
-                  href={businessData.businessUrl} 
+                  href={businessData.businessUrl.startsWith('http://') || businessData.businessUrl.startsWith('https://') 
+                    ? businessData.businessUrl 
+                    : `https://${businessData.businessUrl}`} 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="text-blue-600 hover:text-blue-800 underline font-medium flex items-center gap-1"
                 >
-                  {new URL(businessData.businessUrl).hostname}
+                  {(() => {
+                    try {
+                      const urlWithProtocol = businessData.businessUrl.startsWith('http://') || businessData.businessUrl.startsWith('https://') 
+                        ? businessData.businessUrl 
+                        : `https://${businessData.businessUrl}`;
+                      return new URL(urlWithProtocol).hostname;
+                    } catch {
+                      return businessData.businessUrl;
+                    }
+                  })()}
                   <ExternalLink className="h-4 w-4" />
                 </a>
               </div>

@@ -505,8 +505,8 @@ https://leadmagnet.build`,
 Task
 1. Visit and read the content from the following business website: ${normalizedUrl}.
 2. Based only on content from that website (no other sources), write:  
-   • prodDescription – 1‑3 concise sentences explaining the core product or service.  
-   • targetAudience – 1‑3 concise sentences describing the likely customers, inferred from the site's messaging.  
+   • prodDescription – 1‑4 concise sentences explaining the core product or service.  
+   • targetAudience – 1‑4 concise sentences describing the likely customers, inferred from the site's messaging.  
    • confidence – an integer 1‑10 reflecting how certain you are about what the business does and who their target audience is (10 = very certain; 1 = no clear idea).
 
 Output  

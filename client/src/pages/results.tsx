@@ -64,7 +64,10 @@ export default function Results() {
   useEffect(() => {
     if (magnetRequest?.businessUrl) {
       try {
-        const url = new URL(magnetRequest.businessUrl);
+        const urlWithProtocol = magnetRequest.businessUrl.startsWith('http://') || magnetRequest.businessUrl.startsWith('https://') 
+          ? magnetRequest.businessUrl 
+          : `https://${magnetRequest.businessUrl}`;
+        const url = new URL(urlWithProtocol);
         const domain = url.hostname.replace('www.', '');
         document.title = `Magnetize - ${domain}`;
       } catch (error) {
@@ -321,12 +324,23 @@ export default function Results() {
                   Business Profile{magnetRequest.businessUrl && (
                     <span className="text-blue-600 font-normal">: 
                       <a 
-                        href={magnetRequest.businessUrl} 
+                        href={magnetRequest.businessUrl.startsWith('http://') || magnetRequest.businessUrl.startsWith('https://') 
+                          ? magnetRequest.businessUrl 
+                          : `https://${magnetRequest.businessUrl}`} 
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="font-medium inline-flex items-center ml-1"
                       >
-                        {new URL(magnetRequest.businessUrl).hostname}
+                        {(() => {
+                          try {
+                            const urlWithProtocol = magnetRequest.businessUrl.startsWith('http://') || magnetRequest.businessUrl.startsWith('https://') 
+                              ? magnetRequest.businessUrl 
+                              : `https://${magnetRequest.businessUrl}`;
+                            return new URL(urlWithProtocol).hostname;
+                          } catch {
+                            return magnetRequest.businessUrl;
+                          }
+                        })()}
                         <ExternalLink className="h-4 w-4 ml-1" />
                       </a>
                     </span>

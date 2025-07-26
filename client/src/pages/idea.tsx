@@ -252,7 +252,16 @@ export default function Idea() {
                   onClick={() => setIsBusinessProfileModalOpen(true)}
                   className="text-blue-600 hover:text-blue-800 underline text-sm"
                 >
-                  {idea.magnetRequest.businessUrl ? new URL(idea.magnetRequest.businessUrl).hostname : 'View Profile'}
+                  {idea.magnetRequest.businessUrl ? (() => {
+                    try {
+                      const urlWithProtocol = idea.magnetRequest.businessUrl.startsWith('http://') || idea.magnetRequest.businessUrl.startsWith('https://') 
+                        ? idea.magnetRequest.businessUrl 
+                        : `https://${idea.magnetRequest.businessUrl}`;
+                      return new URL(urlWithProtocol).hostname;
+                    } catch {
+                      return idea.magnetRequest.businessUrl;
+                    }
+                  })() : 'View Profile'}
                 </button>
               </div>
             </div>
