@@ -155,12 +155,28 @@ export default function Home() {
     }
   };
 
-  // Helper to check if a string is a valid URL (require protocol)
+  // Helper to check if a string is a valid URL (allow URLs without protocol)
   function isValidUrl(url: string | undefined): boolean {
-    if (!url) return false;
+    if (!url || !url.trim()) return false;
+    
     try {
-      const parsed = new URL(url);
-      return /^https?:\/\//i.test(parsed.href);
+      const urlWithProtocol = url.startsWith('http://') || url.startsWith('https://') 
+        ? url 
+        : `https://${url}`;
+      
+      const parsedUrl = new URL(urlWithProtocol);
+      
+      // Check that it has a valid hostname (domain)
+      if (!parsedUrl.hostname || parsedUrl.hostname.length < 3) return false;
+      
+      // Check that it has a valid domain structure (at least one dot and valid characters)
+      const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+      if (!domainRegex.test(parsedUrl.hostname)) return false;
+      
+      // Check that it's not just a localhost or IP address (optional, but good for business URLs)
+      if (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') return false;
+      
+      return true;
     } catch {
       return false;
     }
@@ -269,13 +285,13 @@ export default function Home() {
                           </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="https://yourbusiness.com"
-                              type="url"
+                              placeholder="yourbusiness.com"
+                              type="text"
                               {...field}
                             />
                           </FormControl>
                           {Boolean(field.value?.trim()) && !isValidUrl(field.value) && (
-                            <p className="text-xs text-red-500 mt-1">Please enter a valid URL starting with http:// or https://</p>
+                            <p className="text-xs text-red-500 mt-1">Please enter a valid URL (e.g., example.com or https://example.com)</p>
                           )}
                           <FormMessage />
                         </FormItem>

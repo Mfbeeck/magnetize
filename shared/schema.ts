@@ -82,7 +82,33 @@ export const generateIdeasSchema = z.object({
   prodDescription: z.string().min(1, "Product description is required"),
   targetAudience: z.string().min(1, "Target audience is required"),
   location: z.string().optional(),
-  businessUrl: z.string().url("Must be a valid URL").min(1, "Business website URL is required"),
+  businessUrl: z.string()
+    .min(1, "Business website URL is required")
+    .refine((url) => {
+      if (!url || !url.trim()) return false;
+      
+      // Allow URLs with or without protocol
+      const urlWithProtocol = url.startsWith('http://') || url.startsWith('https://') 
+        ? url 
+        : `https://${url}`;
+      try {
+        const parsedUrl = new URL(urlWithProtocol);
+        
+        // Check that it has a valid hostname (domain)
+        if (!parsedUrl.hostname || parsedUrl.hostname.length < 3) return false;
+        
+        // Check that it has a valid domain structure (at least one dot and valid characters)
+        const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+        if (!domainRegex.test(parsedUrl.hostname)) return false;
+        
+        // Check that it's not just a localhost or IP address
+        if (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') return false;
+        
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Must be a valid website URL (e.g., example.com or https://example.com)"),
 });
 
 export interface LeadMagnetIdea {

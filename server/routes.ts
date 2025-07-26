@@ -490,17 +490,27 @@ https://leadmagnet.build`,
       if (!businessUrl) {
         return res.status(400).json({ error: "Missing businessUrl" });
       }
+
+      // Normalize URL - add https:// if no protocol is specified
+      const normalizeUrl = (url: string): string => {
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          return `https://${url}`;
+        }
+        return url;
+      };
+
+      const normalizedUrl = normalizeUrl(businessUrl);
       const prompt = `You are a senior marketing strategist with strong web‑research skills.
 
 Task
-1. Visit and read the content from the following business website: ${businessUrl}.
+1. Visit and read the content from the following business website: ${normalizedUrl}.
 2. Based only on content from that website (no other sources), write:  
    • prodDescription – 1‑3 concise sentences explaining the core product or service.  
    • targetAudience – 1‑3 concise sentences describing the likely customers, inferred from the site's messaging.  
    • confidence – an integer 1‑10 reflecting how certain you are about what the business does and who their target audience is (10 = very certain; 1 = no clear idea).
 
 Output  
-Return **exactly** this JSON—no commentary, no extra keys:
+Return ONLY a valid JSON object with no markdown formatting, no code blocks, no commentary, and no extra keys:
 
 {
   "website": "{{website_url}}",
@@ -513,15 +523,37 @@ Guidelines
 - ONLY view the homepage page of the website, no need for citations.
 - If the site is vague or confusing, lower the confidence score.  
 - Keep language direct and free of marketing fluff.  
-- Only return the JSON object, no other text or sources needed.`;
+- Return ONLY the raw JSON object, no markdown formatting, no code blocks, no additional text.
+- Do not wrap the JSON in backticks or any other formatting.`;
       // Use OpenAI o4-mini with web_search_preview tool
       const response = await client.responses.create({
         model: "gpt-4.1",
         input: prompt,
         tools: [{ type: "web_search_preview" }]
       });
+      console.log("Response from OpenAI:", response.output_text)
       const rawOutputText = response.output_text;
-      const result = JSON.parse(rawOutputText || "{}");
+      
+      // Extract JSON from the response, handling both pure JSON and markdown-formatted JSON
+      let result;
+      try {
+        // First try to parse as pure JSON
+        result = JSON.parse(rawOutputText || "{}");
+      } catch (parseError) {
+        // If that fails, try to extract JSON from markdown code blocks
+        const jsonMatch = rawOutputText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        if (jsonMatch) {
+          try {
+            result = JSON.parse(jsonMatch[1]);
+          } catch (markdownParseError) {
+            console.error("Failed to parse JSON from markdown:", markdownParseError);
+            throw new Error("AI returned invalid JSON format");
+          }
+        } else {
+          console.error("No valid JSON found in response:", rawOutputText);
+          throw new Error("AI did not return valid JSON");
+        }
+      }
       if (!result.prodDescription || !result.targetAudience) {
         throw new Error("AI did not return expected fields");
       }
@@ -529,7 +561,7 @@ Guidelines
         prodDescription: result.prodDescription,
         targetAudience: result.targetAudience,
         confidence: result.confidence,
-        website: result.website
+        website: normalizedUrl
       });
     } catch (error) {
       console.error("Error in autofill-business-profile:", error);
