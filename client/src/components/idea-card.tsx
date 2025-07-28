@@ -89,7 +89,7 @@ export function IdeaCard({ idea, onViewDetails, onHelpBuild, publicId }: IdeaCar
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-slate-900 text-white border-slate-900">
-                  <p>Help me build this</p>
+                  <p className="">Build this with us</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

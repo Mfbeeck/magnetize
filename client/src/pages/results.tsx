@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Magnet, Edit, RefreshCw, ArrowLeft, Link, MapPin } from "lucide-react";
+import { ExternalLink, Magnet, Edit, RefreshCw, ArrowLeft, Link, MapPin, ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { type LeadMagnetIdea } from "@shared/schema";
 import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
 import { IdeaDetailModal } from "@/components/idea-detail-modal";
-import { AboutModal } from "@/components/about-modal";
+
 import { HelpBuildModal } from "@/components/help-build-modal";
 
 interface MagnetRequest {
@@ -31,14 +31,17 @@ export default function Results() {
   const [, params] = useRoute<{ publicId: string }>("/results/:publicId");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+
   const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
   const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
   const [filteredIdeas, setFilteredIdeas] = useState<LeadMagnetIdea[]>([]);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['Simple', 'Moderate', 'Advanced']));
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showFullAudience, setShowFullAudience] = useState(false);
   const { toast } = useToast();
+  const ideasSectionRef = useRef<HTMLDivElement>(null);
 
   const { data: magnetRequest, isLoading, error, refetch } = useQuery({
     queryKey: ["magnetRequest", params?.publicId],
@@ -97,6 +100,8 @@ export default function Results() {
       return () => clearInterval(interval);
     }
   }, [isRegenerating]);
+
+
 
   const handleEdit = async (data: any) => {
     try {
@@ -173,7 +178,7 @@ export default function Results() {
       const shareUrl = generateShareUrl(window.location.pathname, 'result');
       await navigator.clipboard.writeText(shareUrl);
       toast({
-        title: "Results URL copied to clipboard",
+        title: "The URL to these results has been copied to your clipboard",
         description: "Send it to anyone who might be interested!",
       });
     } catch (err) {
@@ -249,38 +254,6 @@ export default function Results() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <button 
-              onClick={() => window.location.href = "/"}
-              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                <Magnet className="text-white text-sm" />
-              </div>
-              <h1 className="text-xl font-bold text-slate-900">Magnetize</h1>
-            </button>
-            <nav className="flex items-center space-x-6">
-              <button
-                onClick={() => setIsAboutModalOpen(true)}
-                className="text-slate-600 hover:text-slate-900 transition-colors font-medium"
-              >
-                About
-              </button>
-              {isFromShareLink() && (
-                <Button
-                  onClick={() => window.location.href = "/"}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-                >
-                  Get Free Lead Magnet Ideas
-                </Button>
-              )}
-            </nav>
-          </div>
-        </div>
-      </header>
 
       {/* Regeneration Loading State */}
       {isRegenerating && (
@@ -321,15 +294,15 @@ export default function Results() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-xl font-semibold text-slate-900 mb-1">
-                  Business Profile{magnetRequest.businessUrl && (
-                    <span className="text-blue-600 font-normal">: 
+                  Business Profile: {magnetRequest.businessUrl && (
+                    <span className="text-blue-600 font-normal"> 
                       <a 
                         href={magnetRequest.businessUrl.startsWith('http://') || magnetRequest.businessUrl.startsWith('https://') 
                           ? magnetRequest.businessUrl 
                           : `https://${magnetRequest.businessUrl}`} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="font-medium inline-flex items-center ml-1"
+                        className="font-medium inline-flex items-center"
                       >
                         {(() => {
                           try {
@@ -356,41 +329,110 @@ export default function Results() {
                 onClick={() => setIsModalOpen(true)}
                 className="text-slate-600 hover:text-slate-900"
               >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
+                <Edit className="sm:mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Edit</span>
               </Button>
             </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-slate-600 mb-2">Product or Service Description:</span>
-                <p className="text-slate-900 mt-1 p-3 bg-slate-50 rounded-md flex-1 min-h-[80px]">{magnetRequest.prodDescription}</p>
+                <div className="text-slate-900 mt-1 p-3 bg-slate-50 rounded-md flex-1 min-h-[80px]">
+                  {showFullDescription ? (
+                    <>
+                      {magnetRequest.prodDescription}
+                      <button
+                        onClick={() => setShowFullDescription(false)}
+                        className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
+                      >
+                        see less
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {magnetRequest.prodDescription.length > 120 
+                        ? (() => {
+                            const truncated = magnetRequest.prodDescription.substring(0, 120);
+                            const lastSpaceIndex = truncated.lastIndexOf(' ');
+                            return lastSpaceIndex > 0 
+                              ? `${truncated.substring(0, lastSpaceIndex)}...`
+                              : `${truncated}...`;
+                          })()
+                        : magnetRequest.prodDescription
+                      }
+                      {magnetRequest.prodDescription.length > 120 && (
+                        <button
+                          onClick={() => setShowFullDescription(true)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          see more
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-slate-600 mb-2">Target Audience:</span>
-                <p className="text-slate-900 mt-1 p-3 bg-slate-50 rounded-md flex-1 min-h-[80px]">{magnetRequest.targetAudience}</p>
+                <div className="text-slate-900 mt-1 p-3 bg-slate-50 rounded-md flex-1 min-h-[80px]">
+                  {showFullAudience ? (
+                    <>
+                      {magnetRequest.targetAudience}
+                      <button
+                        onClick={() => setShowFullAudience(false)}
+                        className="text-blue-600 hover:text-blue-800 ml-2 font-medium"
+                      >
+                        see less
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {magnetRequest.targetAudience.length > 120 
+                        ? (() => {
+                            const truncated = magnetRequest.targetAudience.substring(0, 120);
+                            const lastSpaceIndex = truncated.lastIndexOf(' ');
+                            return lastSpaceIndex > 0 
+                              ? `${truncated.substring(0, lastSpaceIndex)}...`
+                              : `${truncated}...`;
+                          })()
+                        : magnetRequest.targetAudience
+                      }
+                      {magnetRequest.targetAudience.length > 120 && (
+                        <button
+                          onClick={() => setShowFullAudience(true)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          see more
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Results Header */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <div ref={ideasSectionRef} className="mb-6">
+          <div className="flex flex-wrap items-center gap-4 mb-4">
             <h3 className="text-2xl font-semibold text-slate-900">Lead Magnet Ideas</h3>
+            <div className="flex-1 min-w-0"></div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleShare}
               className="text-slate-600 hover:text-slate-900"
             >
-              <Link className="mr-2 h-4 w-4 text-blue-600" />
-              Share
+              <Link className="h-4 w-4 text-blue-600 sm:mr-2" />
+              <span className="hidden sm:inline">Share results</span>
             </Button>
           </div>
           
           {/* Complexity Filters */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600 mr-2">Filter:</span>
+            <ListFilter className="h-4 w-4 text-slate-600 sm:hidden" />
+            <span className="hidden sm:inline text-sm text-slate-600">Filter:</span>
             {['Simple', 'Moderate', 'Advanced'].map((complexity) => (
               <Badge
                 key={complexity}
@@ -453,11 +495,7 @@ export default function Results() {
           }}
         />
 
-        {/* About Modal */}
-        <AboutModal
-          isOpen={isAboutModalOpen}
-          onClose={() => setIsAboutModalOpen(false)}
-        />
+
 
         {/* Help Build Modal */}
         {selectedIdea && (

@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ExternalLink, MapPin, Building2 } from "lucide-react";
+import { ExternalLink, MapPin } from "lucide-react";
 
 interface BusinessProfileModalProps {
   isOpen: boolean;
@@ -18,7 +18,6 @@ export function BusinessProfileModal({ isOpen, onClose, businessData }: Business
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-blue-600" />
             Business Profile
           </DialogTitle>
         </DialogHeader>
