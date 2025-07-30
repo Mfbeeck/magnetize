@@ -121,7 +121,7 @@ export default function Idea() {
       console.log('Showing success toast for iteration');
       toast({
         title: "Idea enhanced successfully!",
-        description: " updated with your feedback. You're now viewing the new version.",
+        description: " We've updated the idea based on your feedback. You're now viewing the new version.",
         duration: 5000,
       });
       
