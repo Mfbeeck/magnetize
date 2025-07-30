@@ -84,7 +84,7 @@ export function IdeaCard({ idea, onViewDetails, onHelpBuild, publicId }: IdeaCar
           </TooltipProvider>
         )}
         <div className="flex-1">
-          <h4 className="text-lg font-semibold text-slate-900 mb-2">{idea.name}</h4>
+          <h4 className={`text-lg font-semibold text-slate-900 mb-2 ${idea.iterations && idea.iterations.length > 1 ? 'pr-16' : ''}`}>{idea.name}</h4>
           <Badge variant="secondary" className={`${getComplexityColor(idea.complexityLevel)} mb-4`}>
             {idea.complexityLevel}
           </Badge>

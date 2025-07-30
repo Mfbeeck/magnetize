@@ -357,10 +357,10 @@ export default function Idea() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => window.location.href = `/results/${idea.idea.magnetRequest.publicId}`}
-              className="text-slate-600 hover:text-slate-900"
+              className="text-slate-700 hover:text-slate-500 p-0 h-auto hover:bg-transparent"
             >
               <ArrowLeft className="mr-1 h-4 w-4" />
               Back
@@ -417,46 +417,36 @@ export default function Idea() {
               )}
             </div>
           </div>
-          <div className="mb-4">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">{idea.name}</h1>
-            <p className="text-xl text-slate-600 mb-4">{idea.summary}</p>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600 font-medium">Complexity Level:</span>
-                <Badge className={getComplexityColor(idea.complexityLevel)}>
-                  {idea.complexityLevel}
-                </Badge>
-              </div>
-              {idea.feedbackProvided && (
+                      <div className="mb-4">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">{idea.name}</h1>
+              <p className="text-xl text-slate-600 mb-4">{idea.summary}</p>
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-600 font-medium">Based on feedback:</span>
-                  <Badge className="bg-purple-100 text-purple-700">
-                    Enhanced
+                  <span className="text-sm text-slate-600 font-medium">Complexity Level:</span>
+                  <Badge className={getComplexityColor(idea.complexityLevel)}>
+                    {idea.complexityLevel}
                   </Badge>
                 </div>
-              )}
-            </div>
-            <div className="mt-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600 font-medium">Business:</span>
-                <button
-                  onClick={() => setIsBusinessProfileModalOpen(true)}
-                  className="text-blue-600 hover:text-blue-800 underline text-sm"
-                >
-                  {idea.idea.magnetRequest.businessUrl ? (() => {
-                    try {
-                      const urlWithProtocol = idea.idea.magnetRequest.businessUrl.startsWith('http://') || idea.idea.magnetRequest.businessUrl.startsWith('https://') 
-                        ? idea.idea.magnetRequest.businessUrl 
-                        : `https://${idea.idea.magnetRequest.businessUrl}`;
-                      return new URL(urlWithProtocol).hostname;
-                    } catch {
-                      return idea.idea.magnetRequest.businessUrl;
-                    }
-                  })() : 'View Profile'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600 font-medium">Business:</span>
+                  <button
+                    onClick={() => setIsBusinessProfileModalOpen(true)}
+                    className="text-blue-600 hover:text-blue-800 underline text-sm"
+                  >
+                    {idea.idea.magnetRequest.businessUrl ? (() => {
+                      try {
+                        const urlWithProtocol = idea.idea.magnetRequest.businessUrl.startsWith('http://') || idea.idea.magnetRequest.businessUrl.startsWith('https://') 
+                          ? idea.idea.magnetRequest.businessUrl 
+                          : `https://${idea.idea.magnetRequest.businessUrl}`;
+                        return new URL(urlWithProtocol).hostname;
+                      } catch {
+                        return idea.idea.magnetRequest.businessUrl;
+                      }
+                    })() : 'View Profile'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
         </div>
 
         {/* Main Content Grid */}
