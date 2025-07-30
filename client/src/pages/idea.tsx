@@ -140,18 +140,23 @@ export default function Idea() {
       const response = await apiRequest("POST", "/api/generate-spec", { 
         idea, 
         businessData,
-        ideaId: idea.ideaId 
+        iterationId: idea.id 
       });
       return response.json();
     },
     onSuccess: (data) => {
-      // Invalidate and refetch the idea data
-      queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId] });
+      // Add a small delay to ensure database update has completed
+      setTimeout(() => {
+        // Invalidate and refetch the idea data
+        queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId, versionNum] });
+        // Also invalidate all queries for this idea to ensure fresh data
+        queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId] });
+      }, 500);
       
       // Show toast
       toast({
-        title: "AI-ready blueprint generated!",
-        description: "Your detailed technical specification and build prompt are ready.",
+        title: "AI-ready prompt generated!",
+        description: "Your build prompt is ready. You can now paste it into your AI coding assistant to start building your lead magnet.",
         duration: 5000,
       });
       
@@ -391,7 +396,7 @@ export default function Idea() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="bg-slate-900 text-white border-slate-900 hover:bg-slate-700 hover:border-slate-700 hover:text-white font-semibold"
+                      className="text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border-slate-300 hover:border-slate-400 rounded-full"
                     >
                       <span className="hidden sm:inline">v{versionNum}</span>
                       <ChevronDown className="h-4 w-4" />
@@ -481,7 +486,7 @@ export default function Idea() {
                   Enhance This Idea
                 </CardTitle>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  Want to improve or further customize this idea to your business? Tell us how you'd like to modify it and we'll generate an updated version for your business.
+                  Want to improve or further customize this idea to your business? Tell us how you'd like to modify it and we'll generate an updated version.
                 </p>
               </CardHeader>
               <CardContent>
@@ -671,7 +676,7 @@ export default function Idea() {
                         <Button
                           onClick={handleFeedbackSubmit}
                           disabled={!feedbackText.trim() || isSubmittingFeedback}
-                          className="flex-1"
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSubmittingFeedback ? (
                             <>

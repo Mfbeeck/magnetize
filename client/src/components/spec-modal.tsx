@@ -40,7 +40,7 @@ export function SpecModal({ isOpen, onClose, title, content, leadMagnetTitle }: 
         <DialogHeader>
           <div className="flex-1">
             <DialogTitle className="text-xl font-semibold text-slate-900">
-              AI-Ready Build Prompt: {leadMagnetTitle}
+              AI-Ready Build Prompt
             </DialogTitle>
             <p className="text-sm text-slate-600 mt-2 leading-relaxed">
               To start building a prototype for this lead magnet, copy and paste the prompt into an AI builder like{" "}
@@ -51,20 +51,31 @@ export function SpecModal({ isOpen, onClose, title, content, leadMagnetTitle }: 
           </div>
         </DialogHeader>
         
-        <div className="mt-6 relative">
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => copyToClipboard(displayContent)}
-            className="flex items-center gap-2 absolute top-2 right-2 z-10 bg-blue-600/90 hover:bg-blue-700/90 text-white"
-          >
-            <Copy className="h-4 w-4" />
-            Copy
-          </Button>
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 max-h-[60vh] overflow-y-auto">
-            <pre className="text-slate-800 leading-relaxed font-mono text-sm whitespace-pre-wrap">
-              {displayContent}
-            </pre>
+        <div className="mt-6">
+          {leadMagnetTitle && (
+            <div className="mb-4">
+              <h3 className="text-base font-medium text-slate-700 mb-2">
+                <span className="text-slate-900 font-semibold">Lead Magnet:</span>{" "}
+                <span className="text-slate-700">{leadMagnetTitle}</span>
+              </h3>
+            </div>
+          )}
+          
+          <div className="relative">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => copyToClipboard(displayContent)}
+              className="flex items-center gap-2 absolute top-2 right-2 z-10 bg-blue-600/90 hover:bg-blue-700/90 text-white"
+            >
+              <Copy className="h-4 w-4" />
+              Copy
+            </Button>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 max-h-[60vh] overflow-y-auto">
+              <pre className="text-slate-800 leading-relaxed font-mono text-sm whitespace-pre-wrap">
+                {displayContent}
+              </pre>
+            </div>
           </div>
         </div>
       </DialogContent>

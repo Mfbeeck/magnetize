@@ -268,7 +268,7 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
 
   app.post("/api/generate-spec", async (req, res) => {
     try {
-      const { idea, businessData, ideaId } = req.body;
+      const { idea, businessData, iterationId } = req.body;
       
       if (!idea || !businessData) {
         return res.status(400).json({ 
@@ -305,8 +305,9 @@ Include:
 
 OUTPUT 2: One-Shot Coding Prompt
 Create a complete, copy-paste prompt for AI coding tools that includes:
+- Brief description of the business (name, product/service, target audience, location - if not specified, don't include) the lead magnet is for
 - Clear project description and requirements
-- Specific functionality details
+- Specific functionality details explaining what the app should do and how it should work
 - UI/UX specifications
 - Code structure preferences
 - Output format requirements
@@ -333,17 +334,38 @@ Return as a JSON object with two properties: "magnetSpec" (containing the techni
         throw new Error("Invalid response format from OpenAI for spec generation");
       }
 
-      // Update the idea iteration in the database if ideaId is provided
-      if (ideaId) {
-        // Get the latest iteration (version 0 for now)
-        const iterations = await storage.getIdeaIterationsByIdeaId(ideaId);
-        const latestIteration = iterations.find(i => i.version === 0);
-        if (latestIteration) {
-          await storage.updateIdeaIteration(latestIteration.id, {
-            creationPrompt: result.creationPrompt,
-            magnetSpec: result.magnetSpec
-          });
+      // Update the idea iteration in the database if iterationId is provided
+      if (iterationId) {
+        console.log('Updating iteration with ID:', iterationId);
+        console.log('Creation prompt length:', result.creationPrompt?.length);
+        console.log('Magnet spec length:', result.magnetSpec?.length);
+        
+        // First, let's check if the iteration exists
+        const existingIteration = await storage.getIdeaIterationById(iterationId);
+        console.log('Existing iteration found:', !!existingIteration);
+        if (existingIteration) {
+          console.log('Existing iteration version:', existingIteration.version);
+          console.log('Existing iteration has creationPrompt:', !!existingIteration.creationPrompt);
+          console.log('Existing iteration has magnetSpec:', !!existingIteration.magnetSpec);
         }
+        
+        const updatedIteration = await storage.updateIdeaIteration(iterationId, {
+          creationPrompt: result.creationPrompt,
+          magnetSpec: result.magnetSpec
+        });
+        
+        console.log('Update result:', updatedIteration ? 'success' : 'failed');
+        if (updatedIteration) {
+          console.log('Updated iteration has creationPrompt:', !!updatedIteration.creationPrompt);
+          console.log('Updated iteration has magnetSpec:', !!updatedIteration.magnetSpec);
+        }
+        
+        // Let's verify the update by fetching the iteration again
+        const verifyIteration = await storage.getIdeaIterationById(iterationId);
+        console.log('Verification - iteration has creationPrompt:', !!verifyIteration?.creationPrompt);
+        console.log('Verification - iteration has magnetSpec:', !!verifyIteration?.magnetSpec);
+      } else {
+        console.log('No iterationId provided, skipping database update');
       }
 
       res.json({ 
