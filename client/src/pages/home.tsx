@@ -98,6 +98,8 @@ export default function Home() {
   }, [generateIdeasMutation.isPending]);
 
   const onSubmit = (data: FormData) => {
+    // Scroll to top when form is submitted
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     generateIdeasMutation.mutate(data);
   };
 
