@@ -29,6 +29,7 @@ interface IdeaIterationWithMagnetRequest {
   creationPrompt: string | null;
   magnetSpec: string | null;
   complexityLevel: string;
+  feedbackProvided: string | null;
   createdAt: string;
   idea: {
     id: number;
@@ -104,6 +105,33 @@ export default function Idea() {
       document.title = "Magnetize - Lead Magnet Ideas";
     }
   }, [idea?.name]);
+
+  // Check for iteration success parameter and show toast
+  useEffect(() => {
+    // Only run this effect when the component is fully loaded and idea data is available
+    if (!idea) return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromIteration = urlParams.get('from_iteration');
+    
+    console.log('Checking for from_iteration parameter:', fromIteration);
+    console.log('Current URL:', window.location.href);
+    
+    if (fromIteration === 'success') {
+      console.log('Showing success toast for iteration');
+      toast({
+        title: "Idea enhanced successfully!",
+        description: " updated with your feedback. You're now viewing the new version.",
+        duration: 5000,
+      });
+      
+      // Clean up the URL parameter
+      urlParams.delete('from_iteration');
+      const newUrl = window.location.pathname + (urlParams.toString() ? `?${urlParams.toString()}` : '');
+      window.history.replaceState({}, '', newUrl);
+      console.log('Cleaned up URL to:', newUrl);
+    }
+  }, [idea, toast]); // Run when idea data is available and toast function is ready
 
 
 
@@ -184,7 +212,7 @@ export default function Idea() {
     onSuccess: (data) => {
       toast({
         title: "Idea updated successfully!",
-        description: "Your idea has been iterated based on your feedback.",
+        description: "The idea has been updated based on your feedback. You're now viewing the new version.",
         duration: 5000,
       });
       // Reset iteration state
@@ -193,7 +221,9 @@ export default function Idea() {
       // Navigate to the new version if successful
       if (data.success && data.idea && params) {
         const newVersion = data.idea.version;
-        const newPath = `/results/${data.idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}/v/${newVersion}`;
+        const newPath = `/results/${data.idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}/v/${newVersion}?from_iteration=success`;
+        
+        console.log('Iteration successful, navigating to:', newPath);
         
         // Invalidate the query cache for this idea to ensure fresh data
         queryClient.invalidateQueries({ 
@@ -379,7 +409,14 @@ export default function Idea() {
                         }}
                         className={versionNum === iteration.version ? "bg-slate-100" : ""}
                       >
-                        v{iteration.version}
+                        <div className="flex items-center gap-2">
+                          <span>v{iteration.version}</span>
+                          {iteration.feedbackProvided && (
+                            <Badge className="bg-purple-100 text-purple-700 text-xs">
+                              Enhanced
+                            </Badge>
+                          )}
+                        </div>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -397,7 +434,14 @@ export default function Idea() {
                   {idea.complexityLevel}
                 </Badge>
               </div>
-
+              {idea.feedbackProvided && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600 font-medium">Based on feedback:</span>
+                  <Badge className="bg-purple-100 text-purple-700">
+                    Enhanced
+                  </Badge>
+                </div>
+              )}
             </div>
             <div className="mt-3">
               <div className="flex items-center gap-2">
@@ -459,16 +503,26 @@ export default function Idea() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Textarea
-                    placeholder="e.g., 'Our clients are mostly enterprise-level companies, focus more on leads for businesses of this size' or 'Our business focuses more on preventative care than treatment, can you adapt the idea more to this?' or 'Most of our customers are actually also first-time homebuyers'"
-                    value={iterationFeedback}
-                    onChange={(e) => setIterationFeedback(e.target.value)}
-                    className="min-h-[120px] resize-none"
-                  />
+                  <div className="relative">
+                    <Textarea
+                      placeholder="e.g., 'Our clients are mostly enterprise-level companies, focus more on leads for businesses of this size' or 'Our business focuses more on preventative care than treatment, can you adapt the idea more to this?' or 'Most of our customers are actually also first-time homebuyers'"
+                      value={iterationFeedback}
+                      onChange={(e) => setIterationFeedback(e.target.value)}
+                      className="min-h-[120px] resize-none"
+                    />
+                    <div className="absolute bottom-2 right-2 text-xs text-slate-500">
+                      {iterationFeedback.length}
+                    </div>
+                  </div>
+                  {iterationFeedback.trim().length > 0 && iterationFeedback.trim().length < 30 && (
+                    <p className="text-sm text-amber-600">
+                      Please provide at least 30 characters of feedback to use the enhance feature.
+                    </p>
+                  )}
                   <Button
                     onClick={handleIterationSubmit}
-                    disabled={!iterationFeedback.trim() || isIterating}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                    disabled={iterationFeedback.trim().length < 30 || isIterating}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isIterating ? (
                       <>
@@ -477,7 +531,7 @@ export default function Idea() {
                       </>
                     ) : (
                       <>
-                        Enhance with Feedback
+                        Enhance with feedback
                       </>
                     )}
                   </Button>

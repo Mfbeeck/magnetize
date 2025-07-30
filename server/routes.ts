@@ -870,7 +870,8 @@ Return a JSON object with a single‑element \`ideas\` array, structured exactly
         summary: newIdea.summary,
         detailedDescription: newIdea.detailedDescription,
         whyThis: newIdea.whyThis,
-        complexityLevel: newIdea.complexityLevel
+        complexityLevel: newIdea.complexityLevel,
+        feedbackProvided: userFeedback
       };
 
       const [createdIteration] = await storage.createIdeaIterations([newIterationData]);

@@ -39,6 +39,7 @@ export const ideaIterations = pgTable("idea_iterations", {
   creationPrompt: text("creation_prompt"), // Will be generated later
   magnetSpec: text("magnet_spec"), // Will be generated later
   complexityLevel: text("complexity_level").notNull(), // "Simple" | "Moderate" | "Advanced"
+  feedbackProvided: text("feedback_provided"), // Feedback that led to this iteration
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -126,6 +127,7 @@ export const insertIdeaIterationSchema = createInsertSchema(ideaIterations).pick
   detailedDescription: true,
   whyThis: true,
   complexityLevel: true,
+  feedbackProvided: true,
 });
 
 export const insertHelpRequestSchema = createInsertSchema(helpRequests).pick({
