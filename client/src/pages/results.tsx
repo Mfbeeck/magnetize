@@ -12,9 +12,23 @@ import { generateShareUrl, isFromShareLink } from "@/lib/utils";
 import { type LeadMagnetIdea } from "@shared/schema";
 import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
-import { IdeaDetailModal } from "@/components/idea-detail-modal";
-
 import { HelpBuildModal } from "@/components/help-build-modal";
+
+type IdeaIterationData = {
+  id: number;
+  version: number; 
+  name: string; 
+  summary: string; 
+  detailedDescription: string; 
+  whyThis: string; 
+  complexityLevel: string; 
+};
+
+type IdeaWithIterations = LeadMagnetIdea & { 
+  id: number; 
+  resultIdeaId: number; 
+  iterations: IdeaIterationData[];
+};
 
 interface MagnetRequest {
   id: number;
@@ -23,18 +37,16 @@ interface MagnetRequest {
   targetAudience: string;
   location: string | null;
   createdAt: string;
-  ideas: Array<LeadMagnetIdea & { id: number }>;
+  ideas: IdeaWithIterations[];
   businessUrl: string;
 }
 
 export default function Results() {
   const [, params] = useRoute<{ publicId: string }>("/results/:publicId");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
   const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
-  const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
-  const [filteredIdeas, setFilteredIdeas] = useState<LeadMagnetIdea[]>([]);
+  const [selectedIdea, setSelectedIdea] = useState<IdeaWithIterations | null>(null);
+  const [filteredIdeas, setFilteredIdeas] = useState<IdeaWithIterations[]>([]);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(['Simple', 'Moderate', 'Advanced']));
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -53,12 +65,28 @@ export default function Results() {
     enabled: !!params?.publicId,
   });
 
-  // Filter ideas based on active filters and sort by ID
+  // Filter ideas based on active filters and sort by ID - use latest iteration data
   useEffect(() => {
     if (magnetRequest?.ideas) {
       const filtered = magnetRequest.ideas
-        .filter(idea => activeFilters.has(idea.complexityLevel))
-        .sort((a, b) => a.id - b.id);
+        .filter(idea => {
+          // Check if the latest iteration matches the filter
+          const latestIteration = idea.iterations?.[0]; // First one is latest due to desc order
+          return latestIteration && activeFilters.has(latestIteration.complexityLevel);
+        })
+        .map(idea => {
+          // Use the latest iteration data for display
+          const latestIteration = idea.iterations?.[0];
+          return {
+            ...idea,
+            name: latestIteration?.name || idea.name,
+            summary: latestIteration?.summary || idea.summary,
+            detailedDescription: latestIteration?.detailedDescription || idea.detailedDescription,
+            whyThis: latestIteration?.whyThis || idea.whyThis,
+            complexityLevel: (latestIteration?.complexityLevel || idea.complexityLevel) as "Simple" | "Moderate" | "Advanced"
+          };
+        })
+        .sort((a, b) => a.resultIdeaId - b.resultIdeaId);
       setFilteredIdeas(filtered);
     }
   }, [magnetRequest?.ideas, activeFilters]);
@@ -201,12 +229,9 @@ export default function Results() {
     setActiveFilters(newFilters);
   };
 
-  const handleViewDetails = (idea: LeadMagnetIdea) => {
-    setSelectedIdea(idea);
-    setIsDetailModalOpen(true);
-  };
 
-  const handleHelpBuild = (idea: LeadMagnetIdea) => {
+
+  const handleHelpBuild = (idea: IdeaWithIterations) => {
     setSelectedIdea(idea);
     setIsHelpBuildModalOpen(true);
   };
@@ -456,7 +481,7 @@ export default function Results() {
             <IdeaCard 
               key={idea.id} 
               idea={idea} 
-              onViewDetails={() => handleViewDetails(idea)} 
+              onViewDetails={() => {}} 
               onHelpBuild={() => handleHelpBuild(idea)}
               publicId={magnetRequest.publicId}
             />
@@ -483,17 +508,7 @@ export default function Results() {
           }}
         />
 
-        {/* Idea Detail Modal */}
-        <IdeaDetailModal
-          isOpen={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
-          idea={selectedIdea}
-          businessData={{
-            prodDescription: magnetRequest.prodDescription,
-            targetAudience: magnetRequest.targetAudience,
-            location: magnetRequest.location || ""
-          }}
-        />
+
 
 
 
@@ -503,7 +518,7 @@ export default function Results() {
             isOpen={isHelpBuildModalOpen}
             onClose={() => setIsHelpBuildModalOpen(false)}
             ideaName={selectedIdea.name}
-            ideaId={selectedIdea.id || 0}
+            ideaIterationId={selectedIdea.iterations?.[0]?.id}
           />
         )}
       </main>

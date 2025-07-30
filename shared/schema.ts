@@ -14,10 +14,24 @@ export const magnetRequests = pgTable("magnet_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Ideas table
+// Ideas table - stores the original idea metadata
 export const ideas = pgTable("ideas", {
   id: serial("id").primaryKey(),
   magnetRequestId: integer("magnet_request_id").notNull().references(() => magnetRequests.id, { onDelete: "cascade" }),
+  resultIdeaId: integer("result_idea_id").notNull(), // Position within the result set (1-10)
+  name: text("name").notNull(),
+  summary: text("summary").notNull(),
+  detailedDescription: text("detailed_description").notNull(),
+  whyThis: text("why_this").notNull(),
+  complexityLevel: text("complexity_level").notNull(), // "Simple" | "Moderate" | "Advanced"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Idea iterations table - stores all versions of an idea
+export const ideaIterations = pgTable("idea_iterations", {
+  id: serial("id").primaryKey(),
+  ideaId: integer("idea_id").notNull().references(() => ideas.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(), // 0 = original, 1 = first iteration, etc.
   name: text("name").notNull(),
   summary: text("summary").notNull(),
   detailedDescription: text("detailed_description").notNull(),
@@ -31,9 +45,19 @@ export const ideas = pgTable("ideas", {
 // Help Requests table
 export const helpRequests = pgTable("help_requests", {
   id: serial("id").primaryKey(),
-  ideaId: integer("idea_id").notNull().references(() => ideas.id, { onDelete: "cascade" }),
+  ideaId: integer("idea_id").references(() => ideas.id, { onDelete: "cascade" }), // Made nullable
+  ideaIterationId: integer("idea_iteration_id").references(() => ideaIterations.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+});
+
+// Idea Feedback table
+export const ideaFeedback = pgTable("idea_feedback", {
+  id: serial("id").primaryKey(),
+  ideaIterationId: integer("idea_iteration_id").notNull().references(() => ideaIterations.id, { onDelete: "cascade" }),
+  feedbackRating: integer("feedback_rating").notNull(), // 1 = Not Useful, 2 = Ok, 3 = Great
+  feedbackComments: text("feedback_comments"), // Optional comments
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Define relationships
@@ -46,13 +70,33 @@ export const ideasRelations = relations(ideas, ({ one, many }) => ({
     fields: [ideas.magnetRequestId],
     references: [magnetRequests.id],
   }),
+  iterations: many(ideaIterations),
   helpRequests: many(helpRequests),
+}));
+
+export const ideaIterationsRelations = relations(ideaIterations, ({ one, many }) => ({
+  idea: one(ideas, {
+    fields: [ideaIterations.ideaId],
+    references: [ideas.id],
+  }),
+  feedback: many(ideaFeedback),
 }));
 
 export const helpRequestsRelations = relations(helpRequests, ({ one }) => ({
   idea: one(ideas, {
     fields: [helpRequests.ideaId],
     references: [ideas.id],
+  }),
+  ideaIteration: one(ideaIterations, {
+    fields: [helpRequests.ideaIterationId],
+    references: [ideaIterations.id],
+  }),
+}));
+
+export const ideaFeedbackRelations = relations(ideaFeedback, ({ one }) => ({
+  ideaIteration: one(ideaIterations, {
+    fields: [ideaFeedback.ideaIterationId],
+    references: [ideaIterations.id],
   }),
 }));
 
@@ -66,6 +110,17 @@ export const insertMagnetRequestSchema = createInsertSchema(magnetRequests).pick
 
 export const insertIdeaSchema = createInsertSchema(ideas).pick({
   magnetRequestId: true,
+  resultIdeaId: true,
+  name: true,
+  summary: true,
+  detailedDescription: true,
+  whyThis: true,
+  complexityLevel: true,
+});
+
+export const insertIdeaIterationSchema = createInsertSchema(ideaIterations).pick({
+  ideaId: true,
+  version: true,
   name: true,
   summary: true,
   detailedDescription: true,
@@ -75,7 +130,14 @@ export const insertIdeaSchema = createInsertSchema(ideas).pick({
 
 export const insertHelpRequestSchema = createInsertSchema(helpRequests).pick({
   ideaId: true,
+  ideaIterationId: true,
   email: true,
+});
+
+export const insertIdeaFeedbackSchema = createInsertSchema(ideaFeedback).pick({
+  ideaIterationId: true,
+  feedbackRating: true,
+  feedbackComments: true,
 });
 
 export const generateIdeasSchema = z.object({
@@ -117,10 +179,10 @@ export interface LeadMagnetIdea {
   summary: string;
   detailedDescription: string;
   whyThis: string;
-  creationPrompt?: string;
-  magnetSpec?: string;
   complexityLevel: "Simple" | "Moderate" | "Advanced";
 }
+
+
 
 export interface GenerateIdeasResponse {
   ideas: LeadMagnetIdea[];
@@ -131,7 +193,11 @@ export interface GenerateIdeasResponse {
 
 export type InsertMagnetRequest = z.infer<typeof insertMagnetRequestSchema>;
 export type InsertIdea = z.infer<typeof insertIdeaSchema>;
+export type InsertIdeaIteration = z.infer<typeof insertIdeaIterationSchema>;
 export type InsertHelpRequest = z.infer<typeof insertHelpRequestSchema>;
+export type InsertIdeaFeedback = z.infer<typeof insertIdeaFeedbackSchema>;
 export type MagnetRequest = typeof magnetRequests.$inferSelect;
 export type Idea = typeof ideas.$inferSelect;
+export type IdeaIteration = typeof ideaIterations.$inferSelect;
 export type HelpRequest = typeof helpRequests.$inferSelect;
+export type IdeaFeedback = typeof ideaFeedback.$inferSelect;

@@ -1,0 +1,1 @@
+ALTER TABLE "ideas" ADD COLUMN "idea_iteration" integer NOT NULL DEFAULT 0; 

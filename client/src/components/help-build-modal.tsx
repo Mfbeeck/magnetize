@@ -10,10 +10,11 @@ interface HelpBuildModalProps {
   isOpen: boolean;
   onClose: () => void;
   ideaName: string;
-  ideaId: number;
+  ideaId?: number;
+  ideaIterationId?: number;
 }
 
-export function HelpBuildModal({ isOpen, onClose, ideaName, ideaId }: HelpBuildModalProps) {
+export function HelpBuildModal({ isOpen, onClose, ideaName, ideaId, ideaIterationId }: HelpBuildModalProps) {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,7 +40,8 @@ export function HelpBuildModal({ isOpen, onClose, ideaName, ideaId }: HelpBuildM
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ideaId: ideaId,
+          ideaId: ideaId || undefined,
+          ideaIterationId: ideaIterationId || undefined,
           email: email.trim()
         }),
       });

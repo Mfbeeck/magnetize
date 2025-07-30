@@ -2,7 +2,7 @@ import 'dotenv/config';
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateIdeasSchema, insertHelpRequestSchema, type LeadMagnetIdea } from "@shared/schema";
+import { generateIdeasSchema, insertHelpRequestSchema, insertIdeaFeedbackSchema, type LeadMagnetIdea } from "@shared/schema";
 import OpenAI from "openai";
 import { Resend } from 'resend';
 
@@ -53,7 +53,6 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         }
       });
 
-      console.log("Response from OpenAI:", response)
       const rawOutputText = response.output_text;
       const result = JSON.parse(rawOutputText || "{}");
       
@@ -80,9 +79,10 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         businessUrl: businessUrl
       });
 
-      // Save ideas to database
-      const ideasToSave = validatedIdeas.map(idea => ({
+      // Save ideas to database with sequential result_idea_id values
+      const ideasToSave = validatedIdeas.map((idea, index) => ({
         magnetRequestId: magnetRequest.id,
+        resultIdeaId: index + 1, // Sequential ID starting from 1
         name: idea.name,
         summary: idea.summary,
         detailedDescription: idea.detailedDescription,
@@ -92,10 +92,24 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
 
       const savedIdeas = await storage.createIdeas(ideasToSave);
 
+      // Create initial iterations (version 0) for each idea
+      const iterationsToSave = savedIdeas.map(idea => ({
+        ideaId: idea.id,
+        version: 0,
+        name: idea.name,
+        summary: idea.summary,
+        detailedDescription: idea.detailedDescription,
+        whyThis: idea.whyThis,
+        complexityLevel: idea.complexityLevel
+      }));
+
+      await storage.createIdeaIterations(iterationsToSave);
+
       // Add IDs to the ideas for the response
       const ideasWithIds = validatedIdeas.map((idea, index) => ({
         ...idea,
-        id: savedIdeas[index]?.id
+        id: savedIdeas[index]?.id,
+        resultIdeaId: savedIdeas[index]?.resultIdeaId
       }));
 
       res.json({ 
@@ -166,6 +180,92 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
     }
   });
 
+  app.get("/api/results/:publicId/ideas/:resultIdeaId", async (req, res) => {
+    try {
+      const { publicId, resultIdeaId } = req.params;
+      const resultId = parseInt(resultIdeaId);
+      
+      if (isNaN(resultId)) {
+        return res.status(400).json({ 
+          error: "Invalid result idea ID", 
+          message: "Result idea ID must be a number" 
+        });
+      }
+
+      const idea = await storage.getIdeaByResultId(publicId, resultId);
+      
+      if (!idea) {
+        return res.status(404).json({ 
+          error: "Not found", 
+          message: "Idea not found" 
+        });
+      }
+
+      res.json(idea);
+    } catch (error) {
+      console.error("Error fetching idea by result ID:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch idea", 
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/ideas/:id/iterations", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const ideaId = parseInt(id);
+      
+      if (isNaN(ideaId)) {
+        return res.status(400).json({ 
+          error: "Invalid idea ID", 
+          message: "Idea ID must be a number" 
+        });
+      }
+
+      // Get the original idea to find the magnet request ID
+      const originalIdea = await storage.getIdeaById(ideaId);
+      
+      if (!originalIdea) {
+        return res.status(404).json({ 
+          error: "Not found", 
+          message: "Idea not found" 
+        });
+      }
+
+      // Get all iterations of this idea
+      const iterations = await storage.getIdeaIterationsByIdeaId(originalIdea.id);
+      
+      // If no iterations exist, create a version 0 iteration
+      if (iterations.length === 0) {
+        const initialIteration = {
+          ideaId: originalIdea.id,
+          version: 0,
+          name: originalIdea.name,
+          summary: originalIdea.summary,
+          detailedDescription: originalIdea.detailedDescription,
+          whyThis: originalIdea.whyThis,
+          complexityLevel: originalIdea.complexityLevel
+        };
+        
+        const [createdIteration] = await storage.createIdeaIterations([initialIteration]);
+        // Fetch the iteration with relationships
+        const iterationWithRelations = await storage.getIdeaByIdAndVersion(originalIdea.id, 0);
+        if (iterationWithRelations) {
+          iterations.push(iterationWithRelations);
+        }
+      }
+      
+      res.json({ iterations });
+    } catch (error) {
+      console.error("Error fetching idea iterations:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch idea iterations", 
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.post("/api/generate-spec", async (req, res) => {
     try {
       const { idea, businessData, ideaId } = req.body;
@@ -226,7 +326,6 @@ Return as a JSON object with two properties: "magnetSpec" (containing the techni
         }
       });
 
-      console.log("Response from OpenAI for spec generation:", response);
       const rawOutputText = response.output_text;
       const result = JSON.parse(rawOutputText || "{}");
       
@@ -234,12 +333,17 @@ Return as a JSON object with two properties: "magnetSpec" (containing the techni
         throw new Error("Invalid response format from OpenAI for spec generation");
       }
 
-      // Update the idea in the database if ideaId is provided
+      // Update the idea iteration in the database if ideaId is provided
       if (ideaId) {
-        await storage.updateIdea(ideaId, {
-          creationPrompt: result.creationPrompt,
-          magnetSpec: result.magnetSpec
-        });
+        // Get the latest iteration (version 0 for now)
+        const iterations = await storage.getIdeaIterationsByIdeaId(ideaId);
+        const latestIteration = iterations.find(i => i.version === 0);
+        if (latestIteration) {
+          await storage.updateIdeaIteration(latestIteration.id, {
+            creationPrompt: result.creationPrompt,
+            magnetSpec: result.magnetSpec
+          });
+        }
       }
 
       res.json({ 
@@ -294,7 +398,6 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         }
       });
 
-      console.log("Response from OpenAI:", response)
       const rawOutputText = response.output_text;
       const result = JSON.parse(rawOutputText || "{}");
       
@@ -308,8 +411,6 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         summary: idea.summary || "No summary provided",
         detailedDescription: idea.detailedDescription || "No description provided",
         whyThis: idea.whyThis || "No explanation provided",
-        creationPrompt: undefined, // Will be generated later
-        magnetSpec: undefined, // Will be generated later
         complexityLevel: idea.complexityLevel || "Simple"
       }));
 
@@ -321,9 +422,10 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         businessUrl
       });
 
-      // Save ideas to database
-      const ideasToSave = validatedIdeas.map(idea => ({
+      // Save ideas to database with sequential result_idea_id values
+      const ideasToSave = validatedIdeas.map((idea, index) => ({
         magnetRequestId: magnetRequest.id,
+        resultIdeaId: index + 1, // Sequential ID starting from 1
         name: idea.name,
         summary: idea.summary,
         detailedDescription: idea.detailedDescription,
@@ -333,10 +435,24 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
 
       const savedIdeas = await storage.createIdeas(ideasToSave);
 
+      // Create initial iterations (version 0) for each idea
+      const iterationsToSave = savedIdeas.map(idea => ({
+        ideaId: idea.id,
+        version: 0,
+        name: idea.name,
+        summary: idea.summary,
+        detailedDescription: idea.detailedDescription,
+        whyThis: idea.whyThis,
+        complexityLevel: idea.complexityLevel
+      }));
+
+      await storage.createIdeaIterations(iterationsToSave);
+
       // Add IDs to the ideas for the response
       const ideasWithIds = validatedIdeas.map((idea, index) => ({
         ...idea,
-        id: savedIdeas[index]?.id
+        id: savedIdeas[index]?.id,
+        resultIdeaId: savedIdeas[index]?.resultIdeaId
       }));
 
       res.json({ 
@@ -356,20 +472,40 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
   app.post("/api/help-requests", async (req, res) => {
     try {
       const validatedData = insertHelpRequestSchema.parse(req.body);
-      const { ideaId, email } = validatedData;
+      const { ideaId, ideaIterationId, email } = validatedData;
 
-      // Verify the idea exists
-      const idea = await storage.getIdeaById(ideaId);
-      if (!idea) {
-        return res.status(404).json({ 
-          error: "Not found", 
-          message: "Idea not found" 
+      // Verify the idea iteration exists if provided, otherwise verify the idea exists
+      let iteration = null;
+      let idea = null;
+      
+      if (ideaIterationId) {
+        iteration = await storage.getIdeaIterationById(ideaIterationId);
+        if (!iteration) {
+          return res.status(404).json({ 
+            error: "Not found", 
+            message: "Idea iteration not found" 
+          });
+        }
+        idea = iteration.idea;
+      } else if (ideaId) {
+        idea = await storage.getIdeaById(ideaId);
+        if (!idea) {
+          return res.status(404).json({ 
+            error: "Not found", 
+            message: "Idea not found" 
+          });
+        }
+      } else {
+        return res.status(400).json({ 
+          error: "Bad request", 
+          message: "Either ideaId or ideaIterationId must be provided" 
         });
       }
 
       // Create the help request
       const helpRequest = await storage.createHelpRequest({
-        ideaId,
+        ideaId: ideaId || (iteration ? iteration.ideaId : null),
+        ideaIterationId: ideaIterationId || null,
         email
       });
 
@@ -383,14 +519,26 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
         // Extract domain name from business URL
         let domainName = "Magnetize";
         try {
-          const businessUrl = new URL(idea.magnetRequest.businessUrl);
+          // Normalize URL - add https:// if no protocol is specified
+          const normalizeUrl = (url: string): string => {
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+              return `https://${url}`;
+            }
+            return url;
+          };
+          
+          const normalizedUrl = normalizeUrl(idea.magnetRequest.businessUrl);
+          const businessUrl = new URL(normalizedUrl);
           domainName = businessUrl.hostname.replace('www.', '');
         } catch (error) {
           console.warn("Could not parse business URL for domain extraction:", error);
         }
 
-        // Construct idea URL
-        const ideaUrl = `${req.protocol}://${req.get('host')}/results/${idea.magnetRequest.publicId}/ideas/${idea.id}`;
+        // Get the idea name and construct URL based on whether we have an iteration or not
+        const ideaName = iteration ? iteration.name : idea.name;
+        const ideaUrl = iteration 
+          ? `${req.protocol}://${req.get('host')}/results/${idea.magnetRequest.publicId}/ideas/${idea.resultIdeaId}/v/${iteration.version}`
+          : `${req.protocol}://${req.get('host')}/results/${idea.magnetRequest.publicId}/ideas/${idea.resultIdeaId}`;
 
         // Send email using Resend
         await resend.emails.send({
@@ -398,10 +546,10 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
           to: [email],
           cc: ['team@mbuild-software.com'],
           bcc: ['mfbeeck@gmail.com'],
-          subject: `We got your request, let's explore your ${idea.name} lead magnet!`,
+          subject: `We got your request, let's explore your ${ideaName} lead magnet!`,
           text: `Hey there,
 
-Thanks for reaching out about the "${idea.name}" idea for ${domainName}.
+Thanks for reaching out about the "${ideaName}" idea for ${domainName}.
 
 We love building value-first tools like this and are eager to discuss how we can help you bring it to life.
 
@@ -427,7 +575,7 @@ https://leadmagnet.build`,
               </p>
               
               <p style="margin-bottom: 20px;">
-                Thanks for reaching out about the "${idea.name}" idea for ${domainName}.
+                Thanks for reaching out about the "${ideaName}" idea for ${domainName}.
               </p>
               
               <p style="margin-bottom: 20px;">
@@ -449,7 +597,7 @@ https://leadmagnet.build`,
               </p>
               
               <p style="margin-bottom: 20px;">
-                Meanwhile, you can review your idea details here: <a href="${ideaUrl}" style="color: #0066cc;">${idea.name}</a>.
+                Meanwhile, you can review your idea details here: <a href="${ideaUrl}" style="color: #0066cc;">${ideaName}</a>.
               </p>
               
               <p style="margin-bottom: 20px;">
@@ -458,14 +606,13 @@ https://leadmagnet.build`,
               
               <p style="margin-bottom: 20px;">
                 Best,<br>
-                Matias + the Magnetize team
+                Matias + the Magnetize team<br>
                 <a href="https://leadmagnet.build" style="color: #0066cc;">leadmagnet.build</a>
               </p>
             </div>
           `
         });
 
-        console.log(`Email sent successfully to ${email} for idea: ${idea.name}`);
       } catch (emailError) {
         console.error("Error sending email:", emailError);
         // Don't fail the request if email fails, just log the error
@@ -479,6 +626,40 @@ https://leadmagnet.build`,
       console.error("Error creating help request:", error);
       res.status(500).json({ 
         error: "Failed to create help request", 
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/feedback", async (req, res) => {
+    try {
+      const validatedData = insertIdeaFeedbackSchema.parse(req.body);
+      const { ideaIterationId, feedbackRating, feedbackComments } = validatedData;
+
+      // Verify the idea iteration exists
+      const iteration = await storage.getIdeaIterationById(ideaIterationId);
+      if (!iteration) {
+        return res.status(404).json({ 
+          error: "Not found", 
+          message: "Idea iteration not found" 
+        });
+      }
+
+      // Create the feedback
+      const feedback = await storage.createIdeaFeedback({
+        ideaIterationId,
+        feedbackRating,
+        feedbackComments: feedbackComments || null
+      });
+
+      res.json({ 
+        success: true,
+        feedback
+      });
+    } catch (error) {
+      console.error("Error creating feedback:", error);
+      res.status(500).json({ 
+        error: "Failed to create feedback", 
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -531,7 +712,6 @@ Guidelines
         input: prompt,
         tools: [{ type: "web_search_preview" }]
       });
-      console.log("Response from OpenAI:", response.output_text)
       const rawOutputText = response.output_text;
       
       // Extract JSON from the response, handling both pure JSON and markdown-formatted JSON
@@ -567,6 +747,145 @@ Guidelines
       console.error("Error in autofill-business-profile:", error);
       res.status(500).json({
         error: "Failed to autofill business profile",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.post("/api/iterate-idea", async (req, res) => {
+    try {
+      const { ideaId, userFeedback, currentIdeaContent } = req.body;
+      
+      if (!ideaId || !userFeedback) {
+        return res.status(400).json({ 
+          error: "Missing required data", 
+          message: "Idea ID and user feedback are required" 
+        });
+      }
+
+      // Get the current idea with its magnet request data
+      const idea = await storage.getIdeaById(ideaId);
+      if (!idea) {
+        return res.status(404).json({ 
+          error: "Not found", 
+          message: "Idea not found" 
+        });
+      }
+
+      // Get the latest iteration to use as the base
+      const iterations = await storage.getIdeaIterationsByIdeaId(ideaId);
+      const latestIteration = iterations[iterations.length - 1];
+      if (!latestIteration) {
+        return res.status(404).json({ 
+          error: "Not found", 
+          message: "Idea iteration not found" 
+        });
+      }
+
+      // Use currentIdeaContent if provided, otherwise use latest iteration
+      const baseContent = currentIdeaContent || latestIteration;
+
+      const prompt = `You are the marketing expert who came up with a impactful lead magnet idea for the business mentioned below. I want you to improve upon the idea based on the user's feedback.
+
+Goal  
+Use the user's feedback to iterate on the provided lead‑magnet idea, producing a sharper, more personalized version.
+
+Inputs  
+Business Context (unchanged):  
+• Product/service: ${idea.magnetRequest.prodDescription}  
+• Target audience: ${idea.magnetRequest.targetAudience}  
+• Location: ${idea.magnetRequest.location || 'Not specified'}
+
+Original lead magnet idea provided:  
+{
+  "name": "${baseContent.name}",
+  "summary": "${baseContent.summary}",
+  "detailedDescription": "${baseContent.detailedDescription}",
+  "whyThis": "${baseContent.whyThis}",
+  "complexityLevel": "${baseContent.complexityLevel}"
+}
+
+User feedback / personalization notes (free‑form text):  
+${userFeedback}
+
+Instructions  
+1. Re‑read the **Business Context** and the **Original lead magnet info** alongside the **User feedback**.  
+2. Revise or reimagine the idea so it better fits the feedback while still:  
+   • Solving a real problem for the target audience  
+   • Naturally leading to the business' paid offering  
+   • Collecting email addresses or contact info
+3. Reassess the complexity level (Simple | Moderate | Advanced) based on the updated scope and note the new level in the output.  
+4. Preserve the five fields exactly as named:  
+   • name  
+   • summary  
+   • detailedDescription (4‑6 sentences)  
+   • whyThis (3‑6 sentences explaining relevance and value)  
+   • complexityLevel  
+
+Output format  
+Return a JSON object with a single‑element \`ideas\` array, structured exactly like this:
+
+{
+  "ideas": [
+    {
+      "name": "<string>",
+      "summary": "<string>",
+      "detailedDescription": "<string>",
+      "whyThis": "<string>",
+      "complexityLevel": "<Simple|Moderate|Advanced>"
+    }
+  ]
+}`;
+
+      const response = await client.responses.create({
+        model: "o4-mini",
+        input: prompt,
+        text: { 
+          format: {
+            type: "json_object" }
+        }
+      });
+
+      const rawOutputText = response.output_text;
+      const result = JSON.parse(rawOutputText || "{}");
+      
+      if (!result.ideas || !Array.isArray(result.ideas) || result.ideas.length === 0) {
+        throw new Error("Invalid response format from OpenAI for idea iteration");
+      }
+
+      const newIdea = result.ideas[0];
+
+      // Validate the new idea has required properties
+      if (!newIdea.name || !newIdea.summary || !newIdea.detailedDescription || !newIdea.whyThis || !newIdea.complexityLevel) {
+        throw new Error("Incomplete idea data returned from OpenAI");
+      }
+
+      // Create a new iteration of the idea
+      const newIterationNumber = latestIteration.version + 1;
+      
+      const newIterationData = {
+        ideaId: ideaId,
+        version: newIterationNumber,
+        name: newIdea.name,
+        summary: newIdea.summary,
+        detailedDescription: newIdea.detailedDescription,
+        whyThis: newIdea.whyThis,
+        complexityLevel: newIdea.complexityLevel
+      };
+
+      const [createdIteration] = await storage.createIdeaIterations([newIterationData]);
+      
+      // Get the created iteration with idea and magnet request data
+      const updatedIteration = await storage.getIdeaByIdAndVersion(ideaId, newIterationNumber);
+
+      res.json({ 
+        success: true,
+        idea: updatedIteration
+      });
+    } catch (error) {
+      console.error("Error iterating idea:", error);
+      res.status(500).json({ 
+        error: "Failed to iterate idea", 
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }

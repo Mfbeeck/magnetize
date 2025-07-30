@@ -1,0 +1,262 @@
+{
+  "id": "0003_add_idea_feedback",
+  "prevId": "0002_add_business_url_to_magnet_requests",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "help_requests": {
+      "name": "help_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "idea_id": {
+          "name": "idea_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "references": {
+            "table": "ideas",
+            "column": "id"
+          },
+          "onDelete": "cascade"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "help_requests_idea_id_fkey": {
+          "name": "help_requests_idea_id_fkey",
+          "tableFrom": "help_requests",
+          "tableTo": "ideas",
+          "columnsFrom": [
+            "idea_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      }
+    },
+    "idea_feedback": {
+      "name": "idea_feedback",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "idea_id": {
+          "name": "idea_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "references": {
+            "table": "ideas",
+            "column": "id"
+          },
+          "onDelete": "cascade"
+        },
+        "feedback_rating": {
+          "name": "feedback_rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "feedback_comments": {
+          "name": "feedback_comments",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "idea_feedback_idea_id_fkey": {
+          "name": "idea_feedback_idea_id_fkey",
+          "tableFrom": "idea_feedback",
+          "tableTo": "ideas",
+          "columnsFrom": [
+            "idea_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      }
+    },
+    "ideas": {
+      "name": "ideas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "magnet_request_id": {
+          "name": "magnet_request_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "references": {
+            "table": "magnet_requests",
+            "column": "id"
+          },
+          "onDelete": "cascade"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "detailed_description": {
+          "name": "detailed_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "why_this": {
+          "name": "why_this",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creation_prompt": {
+          "name": "creation_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "magnet_spec": {
+          "name": "magnet_spec",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "complexity_level": {
+          "name": "complexity_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "ideas_magnet_request_id_fkey": {
+          "name": "ideas_magnet_request_id_fkey",
+          "tableFrom": "ideas",
+          "tableTo": "magnet_requests",
+          "columnsFrom": [
+            "magnet_request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      }
+    },
+    "magnet_requests": {
+      "name": "magnet_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prod_description": {
+          "name": "prod_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_audience": {
+          "name": "target_audience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "business_url": {
+          "name": "business_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "magnet_requests_public_id_key": {
+          "name": "magnet_requests_public_id_key",
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {}
+    }
+  }
+} 

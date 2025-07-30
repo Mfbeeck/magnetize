@@ -16,8 +16,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { generateIdeasSchema, type LeadMagnetIdea } from "@shared/schema";
 import { IdeaCard } from "@/components/idea-card";
 import { EditModal } from "@/components/edit-modal";
-import { IdeaDetailModal } from "@/components/idea-detail-modal";
-
 import { HelpBuildModal } from "@/components/help-build-modal";
 
 type FormData = {
@@ -31,8 +29,6 @@ export default function Home() {
   const [ideas, setIdeas] = useState<LeadMagnetIdea[]>([]);
   const [filteredIdeas, setFilteredIdeas] = useState<LeadMagnetIdea[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
   const [isHelpBuildModalOpen, setIsHelpBuildModalOpen] = useState(false);
   const [selectedIdea, setSelectedIdea] = useState<LeadMagnetIdea | null>(null);
   const [currentData, setCurrentData] = useState<FormData | null>(null);
@@ -132,10 +128,7 @@ export default function Home() {
     setFilteredIdeas(filtered);
   };
 
-  const handleViewDetails = (idea: LeadMagnetIdea) => {
-    setSelectedIdea(idea);
-    setIsDetailModalOpen(true);
-  };
+
 
   const handleHelpBuild = (idea: LeadMagnetIdea) => {
     setSelectedIdea(idea);
@@ -564,7 +557,7 @@ export default function Home() {
                 <IdeaCard 
                   key={index} 
                   idea={idea} 
-                  onViewDetails={() => handleViewDetails(idea)} 
+                  onViewDetails={() => {}} 
                   onHelpBuild={() => handleHelpBuild(idea)}
                 />
               ))}
@@ -599,13 +592,7 @@ export default function Home() {
           initialData={currentData}
         />
 
-        {/* Idea Detail Modal */}
-        <IdeaDetailModal
-          isOpen={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
-          idea={selectedIdea}
-          businessData={currentData || undefined}
-        />
+
 
 
 

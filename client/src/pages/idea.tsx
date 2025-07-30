@@ -1,10 +1,12 @@
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Loader2, Link, Hammer } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Link, Hammer, ThumbsUp, Meh, ThumbsDown, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { apiRequest } from "@/lib/queryClient";
 import { generateShareUrl, isFromShareLink } from "@/lib/utils";
 import { type LeadMagnetIdea } from "@shared/schema";
@@ -16,8 +18,10 @@ import { BusinessProfileModal } from "@/components/business-profile-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
-interface IdeaWithMagnetRequest {
+interface IdeaIterationWithMagnetRequest {
   id: number;
+  ideaId: number;
+  version: number;
   name: string;
   summary: string;
   detailedDescription: string;
@@ -26,18 +30,28 @@ interface IdeaWithMagnetRequest {
   magnetSpec: string | null;
   complexityLevel: string;
   createdAt: string;
-  magnetRequest: {
+  idea: {
     id: number;
-    publicId: string;
-    prodDescription: string;
-    targetAudience: string;
-    location: string | null;
-    businessUrl: string;
+    magnetRequest: {
+      id: number;
+      publicId: string;
+      prodDescription: string;
+      targetAudience: string;
+      location: string | null;
+      businessUrl: string;
+    };
   };
 }
 
 export default function Idea() {
-  const [, params] = useRoute<{ id: string }>("/results/:publicId/ideas/:id");
+  // Handle both routes: with and without version
+  const [, paramsWithVersion] = useRoute<{ publicId: string; resultIdeaId: string; version: string }>("/results/:publicId/ideas/:resultIdeaId/v/:version");
+  const [, paramsWithoutVersion] = useRoute<{ publicId: string; resultIdeaId: string }>("/results/:publicId/ideas/:resultIdeaId");
+  
+  // Use whichever params are available
+  const params = paramsWithVersion || paramsWithoutVersion;
+  const versionNum = paramsWithVersion ? parseInt(paramsWithVersion.version) : 0;
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isTechSpecModalOpen, setIsTechSpecModalOpen] = useState(false);
@@ -47,14 +61,38 @@ export default function Idea() {
   const [isBusinessProfileModalOpen, setIsBusinessProfileModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", content: "" });
 
+  // Feedback state
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  // Iteration state
+  const [iterationFeedback, setIterationFeedback] = useState("");
+  const [isIterating, setIsIterating] = useState(false);
+  const [iterations, setIterations] = useState<IdeaIterationWithMagnetRequest[]>([]);
+
   const { data: idea, isLoading, error } = useQuery({
-    queryKey: ["idea", params?.id],
+    queryKey: ["idea", params?.publicId, params?.resultIdeaId, versionNum],
     queryFn: async () => {
-      if (!params?.id) throw new Error("No idea ID provided");
-      const response = await apiRequest("GET", `/api/ideas/${params.id}`);
-      return response.json() as Promise<IdeaWithMagnetRequest>;
+      if (!params?.publicId || !params?.resultIdeaId) throw new Error("No idea parameters provided");
+      
+      // First get the idea by result ID
+      const ideaResponse = await apiRequest("GET", `/api/results/${params.publicId}/ideas/${params.resultIdeaId}`);
+      const ideaData = await ideaResponse.json();
+      
+      // Then get iterations using the database ID
+      const response = await apiRequest("GET", `/api/ideas/${ideaData.id}/iterations`);
+      const data = await response.json();
+      
+      const iterations = data.iterations as IdeaIterationWithMagnetRequest[];
+      
+      setIterations(iterations);
+      const currentIdea = iterations.find(i => i.version === versionNum);
+      
+      if (!currentIdea) throw new Error("Idea version not found");
+      return currentIdea;
     },
-    enabled: !!params?.id,
+    enabled: !!(params?.publicId && params?.resultIdeaId),
   });
 
   // Set dynamic page title based on idea name
@@ -67,20 +105,20 @@ export default function Idea() {
     }
   }, [idea?.name]);
 
+
+
   const generateSpecMutation = useMutation({
-    mutationFn: async ({ idea, businessData }: { idea: IdeaWithMagnetRequest; businessData: any }) => {
+    mutationFn: async ({ idea, businessData }: { idea: IdeaIterationWithMagnetRequest; businessData: any }) => {
       const response = await apiRequest("POST", "/api/generate-spec", { 
         idea, 
         businessData,
-        ideaId: idea.id 
+        ideaId: idea.ideaId 
       });
       return response.json();
     },
     onSuccess: (data) => {
-      console.log("Spec generation response:", data);
-      
       // Invalidate and refetch the idea data
-      queryClient.invalidateQueries({ queryKey: ["idea", params?.id] });
+      queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId] });
       
       // Show toast
       toast({
@@ -106,9 +144,126 @@ export default function Idea() {
     },
   });
 
+  const submitFeedbackMutation = useMutation({
+    mutationFn: async ({ rating, feedback }: { rating: number; feedback: string }) => {
+      const response = await apiRequest("POST", "/api/feedback", { 
+        ideaIterationId: parseInt(idea?.id?.toString() || "0"),
+        feedbackRating: rating,
+        feedbackComments: feedback
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Thank you for your feedback!",
+        description: "Your input helps us improve our suggestions.",
+        duration: 3000,
+      });
+      // Reset feedback state
+      setFeedbackRating(null);
+      setFeedbackText("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit feedback. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const iterateIdeaMutation = useMutation({
+    mutationFn: async ({ ideaId, userFeedback, currentIdeaContent }: { ideaId: number; userFeedback: string; currentIdeaContent: any }) => {
+      const response = await apiRequest("POST", "/api/iterate-idea", { 
+        ideaId,
+        userFeedback,
+        currentIdeaContent
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Idea updated successfully!",
+        description: "Your idea has been iterated based on your feedback.",
+        duration: 5000,
+      });
+      // Reset iteration state
+      setIterationFeedback("");
+      
+      // Navigate to the new version if successful
+      if (data.success && data.idea && params) {
+        const newVersion = data.idea.version;
+        const newPath = `/results/${data.idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}/v/${newVersion}`;
+        
+        // Invalidate the query cache for this idea to ensure fresh data
+        queryClient.invalidateQueries({ 
+          queryKey: ["idea", params.publicId, params.resultIdeaId],
+          exact: false 
+        });
+        
+        // Navigate to the new version
+        window.location.href = newPath;
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to iterate idea. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFeedbackSubmit = () => {
+    if (!feedbackRating || !feedbackText.trim()) return;
+    
+    setIsSubmittingFeedback(true);
+    submitFeedbackMutation.mutate(
+      { rating: feedbackRating, feedback: feedbackText.trim() },
+      {
+        onSettled: () => {
+          setIsSubmittingFeedback(false);
+        }
+      }
+    );
+  };
+
+  const handleFeedbackCancel = () => {
+    setFeedbackRating(null);
+    setFeedbackText("");
+  };
+
+  const handleIterationSubmit = () => {
+    if (!iterationFeedback.trim()) return;
+    
+    setIsIterating(true);
+    iterateIdeaMutation.mutate(
+      { 
+        ideaId: idea!.ideaId, 
+        userFeedback: iterationFeedback.trim(),
+        currentIdeaContent: {
+          name: idea!.name,
+          summary: idea!.summary,
+          detailedDescription: idea!.detailedDescription,
+          whyThis: idea!.whyThis,
+          complexityLevel: idea!.complexityLevel
+        }
+      },
+      {
+        onSettled: () => {
+          setIsIterating(false);
+        }
+      }
+    );
+  };
+
   const handleShare = async () => {
     try {
-      const shareUrl = generateShareUrl(window.location.pathname, 'idea');
+      if (!params || !idea) return;
+      const currentPath = versionNum > 0 
+        ? `/results/${idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}/v/${versionNum}`
+        : `/results/${idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}`;
+      const shareUrl = generateShareUrl(currentPath, 'idea');
       await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "This idea's URL has been copied to your clipboard",
@@ -167,14 +322,14 @@ export default function Idea() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Idea Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.location.href = `/results/${idea.magnetRequest.publicId}`}
+              onClick={() => window.location.href = `/results/${idea.idea.magnetRequest.publicId}`}
               className="text-slate-600 hover:text-slate-900"
             >
               <ArrowLeft className="mr-1 h-4 w-4" />
@@ -188,8 +343,8 @@ export default function Idea() {
                 className="text-slate-600 hover:text-slate-900"
               >
                 <Hammer className="mr-1 h-4 w-4 text-green-600" />
-                <span className="sm:hidden">Help me build</span>
-                <span className="hidden sm:inline">Build this with us</span>
+                <span className="sm:hidden">Help me build this</span>
+                <span className="hidden sm:inline">Help me build this</span>
               </Button>
               <Button
                 variant="outline"
@@ -200,6 +355,36 @@ export default function Idea() {
                 <Link className="h-4 w-4 text-blue-600 sm:mr-1" />
                 <span className="hidden sm:inline">Share</span>
               </Button>
+              {iterations.length > 1 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-slate-600 hover:text-slate-900"
+                    >
+                      <span className="hidden sm:inline">v{versionNum}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {iterations.map((iteration) => (
+                      <DropdownMenuItem
+                        key={iteration.version}
+                        onClick={() => {
+                          const newPath = iteration.version === 0
+                            ? `/results/${iteration.idea.magnetRequest.publicId}/ideas/${params?.resultIdeaId}`
+                            : `/results/${iteration.idea.magnetRequest.publicId}/ideas/${params?.resultIdeaId}/v/${iteration.version}`;
+                          window.location.href = newPath;
+                        }}
+                        className={versionNum === iteration.version ? "bg-slate-100" : ""}
+                      >
+                        v{iteration.version}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
           <div className="mb-4">
@@ -212,6 +397,7 @@ export default function Idea() {
                   {idea.complexityLevel}
                 </Badge>
               </div>
+
             </div>
             <div className="mt-3">
               <div className="flex items-center gap-2">
@@ -220,14 +406,14 @@ export default function Idea() {
                   onClick={() => setIsBusinessProfileModalOpen(true)}
                   className="text-blue-600 hover:text-blue-800 underline text-sm"
                 >
-                  {idea.magnetRequest.businessUrl ? (() => {
+                  {idea.idea.magnetRequest.businessUrl ? (() => {
                     try {
-                      const urlWithProtocol = idea.magnetRequest.businessUrl.startsWith('http://') || idea.magnetRequest.businessUrl.startsWith('https://') 
-                        ? idea.magnetRequest.businessUrl 
-                        : `https://${idea.magnetRequest.businessUrl}`;
+                      const urlWithProtocol = idea.idea.magnetRequest.businessUrl.startsWith('http://') || idea.idea.magnetRequest.businessUrl.startsWith('https://') 
+                        ? idea.idea.magnetRequest.businessUrl 
+                        : `https://${idea.idea.magnetRequest.businessUrl}`;
                       return new URL(urlWithProtocol).hostname;
                     } catch {
-                      return idea.magnetRequest.businessUrl;
+                      return idea.idea.magnetRequest.businessUrl;
                     }
                   })() : 'View Profile'}
                 </button>
@@ -236,122 +422,249 @@ export default function Idea() {
           </div>
         </div>
 
-        {/* Detailed Description */}
-        <Card className="bg-white shadow-sm border border-slate-200 mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg">Lead Magnet Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-slate-700 leading-relaxed">{idea.detailedDescription}</p>
-          </CardContent>
-        </Card>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - 2/3 width */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Detailed Description */}
+            <Card className="bg-white shadow-sm border border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg">Lead Magnet Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-700 leading-relaxed">{idea.detailedDescription}</p>
+              </CardContent>
+            </Card>
 
-        {/* Why This Lead Magnet */}
-        <Card className="bg-white shadow-sm border border-slate-200 mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg">Why This Lead Magnet?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-slate-700 leading-relaxed">{idea.whyThis}</p>
-          </CardContent>
-        </Card>
+            {/* Why This Lead Magnet */}
+            <Card className="bg-white shadow-sm border border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg">Why This Lead Magnet?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-700 leading-relaxed">{idea.whyThis}</p>
+              </CardContent>
+            </Card>
 
-        {/* Generate AI-Ready Blueprint */}
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg">
-              Get Your AI-Ready Blueprint to Start Building This
-            </CardTitle>
-            <p className="text-sm text-blue-700 leading-relaxed">
-              Generate a ready-to-use technical plan that any AI coding assistant can understand. You'll get a detailed specification and build instructions that you can paste directly into tools like{" "}
-              <a href="https://lovable.dev/?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Lovable</a>,{" "}
-              <a href="https://replit.com/~?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Replit</a>,{" "}
-              <a href="https://claude.ai?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-800 hover:text-blue-900 underline font-medium">Claude</a>, etc. to start building your lead magnet today. If you need our help building it, click the "Help build" button below.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex flex-wrap gap-3 flex-1">
-                {!idea.magnetSpec && !idea.creationPrompt ? (
+            {/* Iterate on This Idea */}
+            <Card className="bg-white shadow-sm border border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-purple-600" />
+                  Enhance This Idea
+                </CardTitle>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Want to improve or further customize this idea to your business? Tell us how you'd like to modify it and we'll generate an updated version for your business.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <Textarea
+                    placeholder="e.g., 'Our clients are mostly enterprise-level companies, focus more on leads for businesses of this size' or 'Our business focuses more on preventative care than treatment, can you adapt the idea more to this?' or 'Most of our customers are actually also first-time homebuyers'"
+                    value={iterationFeedback}
+                    onChange={(e) => setIterationFeedback(e.target.value)}
+                    className="min-h-[120px] resize-none"
+                  />
                   <Button
-                    onClick={() => {
-                      const businessData = {
-                        prodDescription: idea.magnetRequest.prodDescription,
-                        targetAudience: idea.magnetRequest.targetAudience,
-                        location: idea.magnetRequest.location || ""
-                      };
-                      generateSpecMutation.mutate({ idea, businessData });
-                    }}
-                    disabled={generateSpecMutation.isPending}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                    onClick={handleIterationSubmit}
+                    disabled={!iterationFeedback.trim() || isIterating}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                   >
-                    {generateSpecMutation.isPending ? (
+                    {isIterating ? (
                       <>
                         <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                        Generating...
+                        Updating idea...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-1 h-4 w-4" />
-                        Generate
+                        Enhance with Feedback
                       </>
                     )}
                   </Button>
-                ) : (
-                  <>                  
-                    {idea.creationPrompt && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setModalContent({
-                            title: "Build Prompt",
-                            content: idea.creationPrompt!
-                          });
-                          setIsPromptModalOpen(true);
-                        }}
-                        className="text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
-                      >
-                        View AI-ready prompt
-                      </Button>
-                    )}
-                    {idea.magnetSpec && (
-                      <button
-                        onClick={() => {
-                          setIsTechSpecModalOpen(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-sm transition-colors duration-200 font-medium"
-                      >
-                        View technical spec
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-              
-              <Button
-                variant="outline"
-                onClick={() => setIsHelpBuildModalOpen(true)}
-                className="text-slate-600 hover:text-slate-900"
-              >
-                <Hammer className="mr-1 h-4 w-4 text-green-600" />
-                <span className="sm:hidden">Help me build</span>
-                <span className="hidden sm:inline">Build this with us</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Action Buttons */}
-        <div className="flex justify-center">
-          <Button
-            onClick={() => window.location.href = `/results/${idea.magnetRequest.publicId}`}
-            variant="outline"
-            className="flex-1 sm:flex-none max-w-xs"
-          >
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to all ideas
-          </Button>
+
+          </div>
+
+          {/* Right Column - 1/3 width */}
+          <div className="space-y-6">
+            {/* Generate AI-Ready Blueprint */}
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Start Building This Idea
+                </CardTitle>
+                <p className="text-sm text-blue-700 leading-relaxed">
+                  Generate an AI-ready prompt with detailed instructions that you can paste directly into an AI builder to bring your idea to life. If you prefer we help you build it, click 'Help me build' below
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {!idea.magnetSpec && !idea.creationPrompt ? (
+                    <Button
+                      onClick={() => {
+                        const businessData = {
+                          prodDescription: idea.idea.magnetRequest.prodDescription,
+                          targetAudience: idea.idea.magnetRequest.targetAudience,
+                          location: idea.idea.magnetRequest.location || ""
+                        };
+                        generateSpecMutation.mutate({ idea, businessData });
+                      }}
+                      disabled={generateSpecMutation.isPending || isIterating}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                    >
+                      {generateSpecMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-1 h-4 w-4" />
+                          Get AI-ready prompt
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      {idea.creationPrompt && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setModalContent({
+                              title: "Build Prompt",
+                              content: idea.creationPrompt!
+                            });
+                            setIsPromptModalOpen(true);
+                          }}
+                          className="w-full text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
+                        >
+                          View AI-ready prompt
+                        </Button>
+                      )}
+                      {/* {idea.magnetSpec && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsTechSpecModalOpen(true);
+                          }}
+                          className="w-full text-blue-600 border-blue-300 hover:bg-blue-50 hover:border-blue-400 bg-white"
+                        >
+                          View technical spec
+                        </Button>
+                      )} */}
+                    </div>
+                  )}
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsHelpBuildModalOpen(true)}
+                    className="w-full text-slate-600 hover:text-slate-900"
+                  >
+                    <Hammer className="mr-1 h-4 w-4 text-green-600" />
+                    Help me build this
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Feedback Widget */}
+            <Card className="bg-white shadow-sm border border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg">How useful was this idea?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setFeedbackRating(3)}
+                      className={`flex-1 min-w-fit flex items-center justify-center gap-2 ${
+                        feedbackRating === 3 
+                          ? "bg-green-50 border-green-400 text-green-700 hover:bg-green-100 hover:border-green-500" 
+                          : feedbackRating 
+                            ? "text-green-400 border-green-200 opacity-50 hover:opacity-100 hover:text-green-600 hover:border-green-300 hover:bg-green-50" 
+                            : "text-green-600 border-green-300 hover:bg-green-50 hover:border-green-400"
+                      }`}
+                    >
+                      <ThumbsUp className="h-4 w-4" />
+                      Great
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setFeedbackRating(2)}
+                      className={`flex-1 min-w-fit flex items-center justify-center gap-2 ${
+                        feedbackRating === 2 
+                          ? "bg-amber-50 border-amber-400 text-amber-700 hover:bg-amber-100 hover:border-amber-500" 
+                          : feedbackRating 
+                            ? "text-amber-400 border-amber-200 opacity-50 hover:opacity-100 hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50" 
+                            : "text-amber-600 border-amber-300 hover:bg-amber-50 hover:border-amber-400"
+                      }`}
+                    >
+                      <Meh className="h-4 w-4" />
+                      Ok
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setFeedbackRating(1)}
+                      className={`flex-1 min-w-fit flex items-center justify-center gap-2 ${
+                        feedbackRating === 1 
+                          ? "bg-red-50 border-red-400 text-red-700 hover:bg-red-100 hover:border-red-500" 
+                          : feedbackRating 
+                            ? "text-red-400 border-red-200 opacity-50 hover:opacity-100 hover:text-red-600 hover:border-red-300 hover:bg-red-50" 
+                            : "text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+                      }`}
+                    >
+                      <ThumbsDown className="h-4 w-4" />
+                      Not Useful
+                    </Button>
+                  </div>
+                  
+                  {feedbackRating && (
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="What made you rate the idea this way?"
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                        className="min-h-[100px] resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleFeedbackSubmit}
+                          disabled={!feedbackText.trim() || isSubmittingFeedback}
+                          className="flex-1"
+                        >
+                          {isSubmittingFeedback ? (
+                            <>
+                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            "Submit"
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleFeedbackCancel}
+                          disabled={isSubmittingFeedback}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+
+          </div>
         </div>
+
+
       </main>
 
       {/* Tech Spec Modal */}
@@ -376,20 +689,18 @@ export default function Idea() {
         isOpen={isHelpBuildModalOpen}
         onClose={() => setIsHelpBuildModalOpen(false)}
         ideaName={idea.name}
-        ideaId={idea.id}
+        ideaIterationId={idea.id}
       />
-
-      
 
       {/* Business Profile Modal */}
       <BusinessProfileModal
         isOpen={isBusinessProfileModalOpen}
         onClose={() => setIsBusinessProfileModalOpen(false)}
         businessData={{
-          prodDescription: idea.magnetRequest.prodDescription,
-          targetAudience: idea.magnetRequest.targetAudience,
-          location: idea.magnetRequest.location,
-          businessUrl: idea.magnetRequest.businessUrl
+          prodDescription: idea.idea.magnetRequest.prodDescription,
+          targetAudience: idea.idea.magnetRequest.targetAudience,
+          location: idea.idea.magnetRequest.location,
+          businessUrl: idea.idea.magnetRequest.businessUrl
         }}
       />
     </div>

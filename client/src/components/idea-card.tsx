@@ -1,4 +1,4 @@
-import { ChevronRight, HelpCircle } from "lucide-react";
+import { ChevronRight, HelpCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,25 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { type LeadMagnetIdea } from "@shared/schema";
 
 interface IdeaCardProps {
-  idea: LeadMagnetIdea & { id?: number };
+  idea: LeadMagnetIdea & { id?: number; resultIdeaId?: number; iterations?: Array<{ 
+    id: number;
+    version: number; 
+    name: string; 
+    summary: string; 
+    detailedDescription: string; 
+    whyThis: string; 
+    complexityLevel: string; 
+  }> };
   onViewDetails: () => void;
-  onHelpBuild?: () => void;
+  onHelpBuild?: (idea: LeadMagnetIdea & { id?: number; resultIdeaId?: number; iterations?: Array<{ 
+    id: number;
+    version: number; 
+    name: string; 
+    summary: string; 
+    detailedDescription: string; 
+    whyThis: string; 
+    complexityLevel: string; 
+  }> }) => void;
   publicId?: string;
 }
 
@@ -32,9 +48,14 @@ export function IdeaCard({ idea, onViewDetails, onHelpBuild, publicId }: IdeaCar
       return;
     }
     
-    // If we have a publicId and idea id, navigate to the idea page
-    if (publicId && idea.id) {
-      window.location.href = `/results/${publicId}/ideas/${idea.id}`;
+    // If we have a publicId and idea resultIdeaId, navigate to the idea page
+    if (publicId && idea.resultIdeaId) {
+      // Navigate to the latest version if there are iterations, otherwise to version 0
+      const latestVersion = idea.iterations && idea.iterations.length > 0 ? idea.iterations[0].version : 0;
+      const url = latestVersion > 0 
+        ? `/results/${publicId}/ideas/${idea.resultIdeaId}/v/${latestVersion}`
+        : `/results/${publicId}/ideas/${idea.resultIdeaId}`;
+      window.location.href = url;
     } else {
       onViewDetails();
     }
@@ -42,10 +63,26 @@ export function IdeaCard({ idea, onViewDetails, onHelpBuild, publicId }: IdeaCar
 
   return (
     <Card 
-      className="bg-white shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 h-full flex flex-col cursor-pointer" 
+      className="bg-white shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 h-full flex flex-col cursor-pointer relative" 
       onClick={handleCardClick}
     >
       <CardContent className="p-6 flex flex-col h-full">
+        {/* Iteration count indicator */}
+        {idea.iterations && idea.iterations.length > 1 && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="absolute top-3 right-3 flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-sm font-semibold z-10">
+                  <RefreshCw className="h-4 w-4" />
+                  {idea.iterations.length - 1}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-slate-900 text-white border-slate-900">
+                <p>This idea has been iterated {idea.iterations.length - 1} {idea.iterations.length - 1 === 1 ? 'time' : 'times'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <div className="flex-1">
           <h4 className="text-lg font-semibold text-slate-900 mb-2">{idea.name}</h4>
           <Badge variant="secondary" className={`${getComplexityColor(idea.complexityLevel)} mb-4`}>
@@ -60,8 +97,13 @@ export function IdeaCard({ idea, onViewDetails, onHelpBuild, publicId }: IdeaCar
             variant="outline" 
             onClick={(e) => {
               e.stopPropagation();
-              if (publicId && idea.id) {
-                window.location.href = `/results/${publicId}/ideas/${idea.id}`;
+              if (publicId && idea.resultIdeaId) {
+                // Navigate to the latest version if there are iterations, otherwise to version 0
+                const latestVersion = idea.iterations && idea.iterations.length > 0 ? idea.iterations[0].version : 0;
+                const url = latestVersion > 0 
+                  ? `/results/${publicId}/ideas/${idea.resultIdeaId}/v/${latestVersion}`
+                  : `/results/${publicId}/ideas/${idea.resultIdeaId}`;
+                window.location.href = url;
               } else {
                 onViewDetails();
               }
@@ -81,7 +123,7 @@ export function IdeaCard({ idea, onViewDetails, onHelpBuild, publicId }: IdeaCar
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onHelpBuild();
+                      onHelpBuild(idea);
                     }}
                     className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
                   >
