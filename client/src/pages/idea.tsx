@@ -391,7 +391,7 @@ export default function Idea() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-slate-600 hover:text-slate-900"
+                      className="bg-slate-900 text-white border-slate-900 hover:bg-slate-700 hover:border-slate-700 hover:text-white font-semibold"
                     >
                       <span className="hidden sm:inline">v{versionNum}</span>
                       <ChevronDown className="h-4 w-4" />
@@ -409,14 +409,7 @@ export default function Idea() {
                         }}
                         className={versionNum === iteration.version ? "bg-slate-100" : ""}
                       >
-                        <div className="flex items-center gap-2">
-                          <span>v{iteration.version}</span>
-                          {iteration.feedbackProvided && (
-                            <Badge className="bg-purple-100 text-purple-700 text-xs">
-                              Enhanced
-                            </Badge>
-                          )}
-                        </div>
+                        <span>v{iteration.version}</span>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
