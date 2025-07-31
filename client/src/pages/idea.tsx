@@ -61,6 +61,45 @@ export default function Idea() {
 
   const [isBusinessProfileModalOpen, setIsBusinessProfileModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", content: "" });
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+
+  // Helper function to handle when prompt is generated
+  const handlePromptGenerated = async (promptContent: string) => {
+    try {
+      // Copy the prompt to clipboard
+      await navigator.clipboard.writeText(promptContent);
+      
+      // Update modal content with the generated prompt
+      setModalContent({
+        title: "Build Prompt",
+        content: promptContent
+      });
+      
+      // Stop loading state
+      setIsGeneratingPrompt(false);
+      
+      // Show success toast
+      toast({
+        title: "AI-ready prompt generated and copied!",
+        description: "The prompt has been copied to your clipboard. You can now paste it into your AI coding assistant.",
+        duration: 5000,
+      });
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      // If clipboard fails, still show the prompt but show different toast
+      setModalContent({
+        title: "Build Prompt",
+        content: promptContent
+      });
+      setIsGeneratingPrompt(false);
+      
+      toast({
+        title: "Your AI-ready prompt is good to go!",
+        description: "Copy the prompt and paste it into any AI coding assistant to start building your lead magnet!",
+        duration: 5000,
+      });
+    }
+  };
 
   // Feedback state
   const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
@@ -144,31 +183,58 @@ export default function Idea() {
       });
       return response.json();
     },
-    onSuccess: (data) => {
-      // Add a small delay to ensure database update has completed
-      setTimeout(() => {
-        // Invalidate and refetch the idea data
-        queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId, versionNum] });
-        // Also invalidate all queries for this idea to ensure fresh data
-        queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId] });
-      }, 500);
+    onSuccess: async (data) => {
+      // Invalidate queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId, versionNum] });
+      queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId] });
       
-      // Show toast
-      toast({
-        title: "AI-ready prompt generated!",
-        description: "Your build prompt is ready. You can now paste it into your AI coding assistant to start building your lead magnet.",
-        duration: 5000,
-      });
+      // Try to get the prompt from the response data first
+      let promptContent = data?.creationPrompt || data?.prompt;
       
-      // Scroll to bottom after a short delay to ensure new content is rendered
-      setTimeout(() => {
-        window.scrollTo({
-          top: document.documentElement.scrollHeight,
-          behavior: 'smooth'
-        });
-      }, 100);
+      // If not in response, try to fetch it from the updated query
+      if (!promptContent) {
+        // Wait a moment for the query to update
+        setTimeout(async () => {
+          const updatedIdea = queryClient.getQueryData(["idea", params?.publicId, params?.resultIdeaId, versionNum]) as IdeaIterationWithMagnetRequest;
+          promptContent = updatedIdea?.creationPrompt;
+          
+          if (promptContent) {
+            await handlePromptGenerated(promptContent);
+          } else {
+            // Final fallback - refetch the idea data
+            try {
+              const response = await apiRequest("GET", `/api/results/${params?.publicId}/ideas/${params?.resultIdeaId}`);
+              const ideaData = await response.json();
+              const iterationsResponse = await apiRequest("GET", `/api/ideas/${ideaData.id}/iterations`);
+              const iterationsData = await iterationsResponse.json();
+              const currentIdea = iterationsData.iterations.find((i: any) => i.version === versionNum);
+              
+              if (currentIdea?.creationPrompt) {
+                await handlePromptGenerated(currentIdea.creationPrompt);
+              } else {
+                setIsGeneratingPrompt(false);
+                toast({
+                  title: "Error",
+                  description: "Generated prompt not found. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            } catch (err) {
+              setIsGeneratingPrompt(false);
+              toast({
+                title: "Error",
+                description: "Failed to retrieve generated prompt. Please try again.",
+                variant: "destructive",
+              });
+            }
+          }
+        }, 500);
+      } else {
+        await handlePromptGenerated(promptContent);
+      }
     },
     onError: (error) => {
+      setIsGeneratingPrompt(false);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to generate specification. Please try again.",
@@ -547,6 +613,14 @@ export default function Idea() {
                   {!idea.magnetSpec && !idea.creationPrompt ? (
                     <Button
                       onClick={() => {
+                        // Open modal immediately with loading state
+                        setModalContent({
+                          title: "Generating AI-Ready Prompt",
+                          content: ""
+                        });
+                        setIsPromptModalOpen(true);
+                        setIsGeneratingPrompt(true);
+                        
                         const businessData = {
                           prodDescription: idea.idea.magnetRequest.prodDescription,
                           targetAudience: idea.idea.magnetRequest.targetAudience,
@@ -724,6 +798,7 @@ export default function Idea() {
         title={modalContent.title}
         content={modalContent.content}
         leadMagnetTitle={idea.name}
+        isLoading={isGeneratingPrompt}
       />
 
       {/* Help Build Modal */}
