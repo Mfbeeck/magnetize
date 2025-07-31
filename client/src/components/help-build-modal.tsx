@@ -2,8 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2 } from "lucide-react";
 
 interface HelpBuildModalProps {
@@ -18,6 +19,19 @@ export function HelpBuildModal({ isOpen, onClose, ideaName, ideaId, ideaIteratio
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
+
+  // Focus email input only on larger screens when modal opens
+  useEffect(() => {
+    if (isOpen && !isMobile && emailInputRef.current) {
+      // Small delay to ensure modal is fully rendered
+      const timer = setTimeout(() => {
+        emailInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isMobile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +111,7 @@ export function HelpBuildModal({ isOpen, onClose, ideaName, ideaId, ideaIteratio
                 Email Address
               </Label>
               <Input
+                ref={emailInputRef}
                 id="email"
                 type="email"
                 placeholder="your@email.com"

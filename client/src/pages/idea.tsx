@@ -491,7 +491,7 @@ export default function Idea() {
                       <div className="mb-4">
               <h1 className="text-3xl font-bold text-slate-900 mb-2">{idea.name}</h1>
               <p className="text-xl text-slate-600 mb-4">{idea.summary}</p>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col min-[400px]:flex-row min-[400px]:items-center gap-2 min-[400px]:gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-600 font-medium">Complexity Level:</span>
                   <Badge className={getComplexityColor(idea.complexityLevel)}>
