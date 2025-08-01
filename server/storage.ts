@@ -45,6 +45,7 @@ export interface IStorage {
   getIdeaByResultId(publicId: string, resultIdeaId: number): Promise<Idea & { magnetRequest: MagnetRequest } | null>;
   getIdeaByIdAndVersion(id: number, version: number): Promise<IdeaIteration & { idea: Idea & { magnetRequest: MagnetRequest } } | null>;
   getIdeaIterationsByIdeaId(ideaId: number): Promise<(IdeaIteration & { idea: Idea & { magnetRequest: MagnetRequest } })[]>;
+  getIterationMetadataByIdeaId(ideaId: number): Promise<{ id: number; version: number }[]>;
   getIdeaIterationById(id: number): Promise<IdeaIteration & { idea: Idea & { magnetRequest: MagnetRequest } } | null>;
   updateIdeaIteration(id: number, updates: Partial<Omit<IdeaIteration, 'id' | 'ideaId' | 'createdAt'>>): Promise<IdeaIteration | null>;
   createHelpRequest(request: InsertHelpRequest): Promise<HelpRequest>;
@@ -176,6 +177,18 @@ export class SupabaseStorage implements IStorage {
         }
       }
     });
+    
+    return iterations;
+  }
+
+  async getIterationMetadataByIdeaId(ideaId: number): Promise<{ id: number; version: number }[]> {
+    const iterations = await db.select({
+      id: ideaIterations.id,
+      version: ideaIterations.version,
+    })
+    .from(ideaIterations)
+    .where(eq(ideaIterations.ideaId, ideaId))
+    .orderBy(ideaIterations.version);
     
     return iterations;
   }

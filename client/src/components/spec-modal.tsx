@@ -82,7 +82,7 @@ export function SpecModal({ isOpen, onClose, title, content, leadMagnetTitle, is
           )}
           
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-4 py-12 px-2">
               <div className="flex items-center justify-center">
                 <span className="text-slate-700 font-medium">Generating your AI-ready prompt...</span>
               </div>
@@ -198,10 +198,10 @@ export function SpecModal({ isOpen, onClose, title, content, leadMagnetTitle, is
                  <div className="flex items-center justify-center">
                   <img 
                     src="/images/cursor-logo.png" 
-                    alt="Cursor" 
+                    alt="v0.dev" 
                     className="w-12 h-12 object-contain rounded-lg"
                   />
-                  <span className="ml-3 font-medium text-slate-900">Cursor</span>
+                  <span className="ml-3 font-medium text-slate-900">v0.dev</span>
                 </div>
               </a>
             </div>

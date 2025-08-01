@@ -109,46 +109,43 @@ export default function Idea() {
   // Iteration state
   const [iterationFeedback, setIterationFeedback] = useState("");
   const [isIterating, setIsIterating] = useState(false);
-  const [iterations, setIterations] = useState<IdeaIterationWithMagnetRequest[]>([]);
 
-  const { data: idea, isLoading, error } = useQuery({
-    queryKey: ["idea", params?.publicId, params?.resultIdeaId, versionNum],
+  // Query for idea data, iteration metadata, and current iteration together
+  const { data: ideaData, isLoading, error } = useQuery({
+    queryKey: ["idea-data", params?.publicId, params?.resultIdeaId, versionNum],
     queryFn: async () => {
       if (!params?.publicId || !params?.resultIdeaId) throw new Error("No idea parameters provided");
       
-      // First get the idea by result ID
-      const ideaResponse = await apiRequest("GET", `/api/results/${params.publicId}/ideas/${params.resultIdeaId}`);
-      const ideaData = await ideaResponse.json();
+      // Get idea data and iteration metadata
+      const metadataResponse = await apiRequest("GET", `/api/results/${params.publicId}/ideas/${params.resultIdeaId}/with-metadata`);
+      const metadataData = await metadataResponse.json();
       
-      // Then get iterations using the database ID
-      const response = await apiRequest("GET", `/api/ideas/${ideaData.id}/iterations`);
-      const data = await response.json();
+      // Get the specific iteration by version
+      const iterationResponse = await apiRequest("GET", `/api/ideas/${metadataData.idea.id}/iteration/${versionNum}`);
+      const iterationData = await iterationResponse.json();
       
-      const iterations = data.iterations as IdeaIterationWithMagnetRequest[];
-      
-      setIterations(iterations);
-      const currentIdea = iterations.find(i => i.version === versionNum);
-      
-      if (!currentIdea) throw new Error("Idea version not found");
-      return currentIdea;
+      return {
+        idea: iterationData.iteration as IdeaIterationWithMagnetRequest,
+        iterationMetadata: metadataData.iterationMetadata as { id: number; version: number }[]
+      };
     },
     enabled: !!(params?.publicId && params?.resultIdeaId),
   });
 
   // Set dynamic page title based on idea name
   useEffect(() => {
-    if (idea?.name) {
-      document.title = `Magnetize - ${idea.name}`;
+    if (ideaData?.idea?.name) {
+      document.title = `Magnetize - ${ideaData.idea.name}`;
     } else {
       // Fallback when idea data is not available
       document.title = "Magnetize - Lead Magnet Ideas";
     }
-  }, [idea?.name]);
+  }, [ideaData?.idea?.name]);
 
   // Check for iteration success parameter and show toast
   useEffect(() => {
     // Only run this effect when the component is fully loaded and idea data is available
-    if (!idea) return;
+    if (!ideaData?.idea) return;
     
     const urlParams = new URLSearchParams(window.location.search);
     const fromIteration = urlParams.get('from_iteration');
@@ -170,9 +167,7 @@ export default function Idea() {
       window.history.replaceState({}, '', newUrl);
       console.log('Cleaned up URL to:', newUrl);
     }
-  }, [idea, toast]); // Run when idea data is available and toast function is ready
-
-
+  }, [ideaData?.idea, toast]); // Run when idea data is available and toast function is ready
 
   const generateSpecMutation = useMutation({
     mutationFn: async ({ idea, businessData }: { idea: IdeaIterationWithMagnetRequest; businessData: any }) => {
@@ -185,8 +180,7 @@ export default function Idea() {
     },
     onSuccess: async (data) => {
       // Invalidate queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId, versionNum] });
-      queryClient.invalidateQueries({ queryKey: ["idea", params?.publicId, params?.resultIdeaId] });
+      queryClient.invalidateQueries({ queryKey: ["idea-data", params?.publicId, params?.resultIdeaId, versionNum] });
       
       // Try to get the prompt from the response data first
       let promptContent = data?.creationPrompt || data?.prompt;
@@ -195,8 +189,8 @@ export default function Idea() {
       if (!promptContent) {
         // Wait a moment for the query to update
         setTimeout(async () => {
-          const updatedIdea = queryClient.getQueryData(["idea", params?.publicId, params?.resultIdeaId, versionNum]) as IdeaIterationWithMagnetRequest;
-          promptContent = updatedIdea?.creationPrompt;
+          const updatedIdea = queryClient.getQueryData(["idea-data", params?.publicId, params?.resultIdeaId, versionNum]) as { idea: IdeaIterationWithMagnetRequest };
+          promptContent = updatedIdea?.idea?.creationPrompt;
           
           if (promptContent) {
             await handlePromptGenerated(promptContent);
@@ -246,7 +240,7 @@ export default function Idea() {
   const submitFeedbackMutation = useMutation({
     mutationFn: async ({ rating, feedback }: { rating: number; feedback: string }) => {
       const response = await apiRequest("POST", "/api/feedback", { 
-        ideaIterationId: parseInt(idea?.id?.toString() || "0"),
+        ideaIterationId: parseInt(ideaData?.idea?.id?.toString() || "0"),
         feedbackRating: rating,
         feedbackComments: feedback
       });
@@ -298,7 +292,7 @@ export default function Idea() {
         
         // Invalidate the query cache for this idea to ensure fresh data
         queryClient.invalidateQueries({ 
-          queryKey: ["idea", params.publicId, params.resultIdeaId],
+          queryKey: ["idea-data", params.publicId, params.resultIdeaId],
           exact: false 
         });
         
@@ -335,19 +329,19 @@ export default function Idea() {
   };
 
   const handleIterationSubmit = () => {
-    if (!iterationFeedback.trim()) return;
+    if (!iterationFeedback.trim() || !ideaData?.idea) return;
     
     setIsIterating(true);
     iterateIdeaMutation.mutate(
       { 
-        ideaId: idea!.ideaId, 
+        ideaId: ideaData.idea.ideaId, 
         userFeedback: iterationFeedback.trim(),
         currentIdeaContent: {
-          name: idea!.name,
-          summary: idea!.summary,
-          detailedDescription: idea!.detailedDescription,
-          whyThis: idea!.whyThis,
-          complexityLevel: idea!.complexityLevel
+          name: ideaData.idea.name,
+          summary: ideaData.idea.summary,
+          detailedDescription: ideaData.idea.detailedDescription,
+          whyThis: ideaData.idea.whyThis,
+          complexityLevel: ideaData.idea.complexityLevel
         }
       },
       {
@@ -360,10 +354,10 @@ export default function Idea() {
 
   const handleShare = async () => {
     try {
-      if (!params || !idea) return;
+      if (!params || !ideaData?.idea) return;
       const currentPath = versionNum > 0 
-        ? `/results/${idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}/v/${versionNum}`
-        : `/results/${idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}`;
+        ? `/results/${ideaData.idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}/v/${versionNum}`
+        : `/results/${ideaData.idea.idea.magnetRequest.publicId}/ideas/${params.resultIdeaId}`;
       const shareUrl = generateShareUrl(currentPath, 'idea');
       await navigator.clipboard.writeText(shareUrl);
       toast({
@@ -404,7 +398,7 @@ export default function Idea() {
     );
   }
 
-  if (error || !idea) {
+  if (error || !ideaData?.idea) {
     return (
       <div className="min-h-screen bg-slate-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -430,7 +424,7 @@ export default function Idea() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => window.location.href = `/results/${idea.idea.magnetRequest.publicId}`}
+              onClick={() => window.location.href = `/results/${ideaData.idea.idea.magnetRequest.publicId}`}
               className="text-slate-700 hover:text-slate-500 p-0 h-auto hover:bg-transparent"
             >
               <ArrowLeft className="mr-1 h-4 w-4" />
@@ -456,7 +450,7 @@ export default function Idea() {
                 <Link className="h-4 w-4 text-blue-600 sm:mr-1" />
                 <span className="hidden sm:inline">Share</span>
               </Button>
-              {iterations.length > 1 && (
+              {ideaData.iterationMetadata && ideaData.iterationMetadata.length > 1 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -469,13 +463,13 @@ export default function Idea() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {iterations.map((iteration) => (
+                    {ideaData.iterationMetadata.map((iteration: { id: number; version: number }) => (
                       <DropdownMenuItem
                         key={iteration.version}
                         onClick={() => {
                           const newPath = iteration.version === 0
-                            ? `/results/${iteration.idea.magnetRequest.publicId}/ideas/${params?.resultIdeaId}`
-                            : `/results/${iteration.idea.magnetRequest.publicId}/ideas/${params?.resultIdeaId}/v/${iteration.version}`;
+                            ? `/results/${ideaData.idea.idea.magnetRequest.publicId}/ideas/${params?.resultIdeaId}`
+                            : `/results/${ideaData.idea.idea.magnetRequest.publicId}/ideas/${params?.resultIdeaId}/v/${iteration.version}`;
                           window.location.href = newPath;
                         }}
                         className={versionNum === iteration.version ? "bg-slate-100" : ""}
@@ -489,13 +483,12 @@ export default function Idea() {
             </div>
           </div>
                       <div className="mb-4">
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">{idea.name}</h1>
-              <p className="text-xl text-slate-600 mb-4">{idea.summary}</p>
-              <div className="flex flex-col min-[400px]:flex-row min-[400px]:items-center gap-2 min-[400px]:gap-4">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">{ideaData.idea.name}</h1>
+              <div className="flex flex-col min-[470px]:flex-row min-[470px]:items-center gap-2 min-[470px]:gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-600 font-medium">Complexity Level:</span>
-                  <Badge className={getComplexityColor(idea.complexityLevel)}>
-                    {idea.complexityLevel}
+                  <Badge className={getComplexityColor(ideaData.idea.complexityLevel)}>
+                    {ideaData.idea.complexityLevel}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2">
@@ -504,14 +497,14 @@ export default function Idea() {
                     onClick={() => setIsBusinessProfileModalOpen(true)}
                     className="text-blue-600 hover:text-blue-800 underline text-sm"
                   >
-                    {idea.idea.magnetRequest.businessUrl ? (() => {
+                    {ideaData.idea.idea.magnetRequest.businessUrl ? (() => {
                       try {
-                        const urlWithProtocol = idea.idea.magnetRequest.businessUrl.startsWith('http://') || idea.idea.magnetRequest.businessUrl.startsWith('https://') 
-                          ? idea.idea.magnetRequest.businessUrl 
-                          : `https://${idea.idea.magnetRequest.businessUrl}`;
+                        const urlWithProtocol = ideaData.idea.idea.magnetRequest.businessUrl.startsWith('http://') || ideaData.idea.idea.magnetRequest.businessUrl.startsWith('https://') 
+                          ? ideaData.idea.idea.magnetRequest.businessUrl 
+                          : `https://${ideaData.idea.idea.magnetRequest.businessUrl}`;
                         return new URL(urlWithProtocol).hostname;
                       } catch {
-                        return idea.idea.magnetRequest.businessUrl;
+                        return ideaData.idea.idea.magnetRequest.businessUrl;
                       }
                     })() : 'View Profile'}
                   </button>
@@ -523,14 +516,24 @@ export default function Idea() {
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - 2/3 width */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-4">
+            {/* Summary */}
+            <Card className="bg-white shadow-sm border border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg">Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-700 leading-relaxed text-lg">{ideaData.idea.summary}</p>
+              </CardContent>
+            </Card>
+
             {/* Detailed Description */}
             <Card className="bg-white shadow-sm border border-slate-200">
               <CardHeader>
                 <CardTitle className="text-lg">Lead Magnet Details</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-700 leading-relaxed">{idea.detailedDescription}</p>
+                <p className="text-slate-700 leading-relaxed">{ideaData.idea.detailedDescription}</p>
               </CardContent>
             </Card>
 
@@ -540,7 +543,7 @@ export default function Idea() {
                 <CardTitle className="text-lg">Why This Lead Magnet?</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-700 leading-relaxed">{idea.whyThis}</p>
+                <p className="text-slate-700 leading-relaxed">{ideaData.idea.whyThis}</p>
               </CardContent>
             </Card>
 
@@ -559,7 +562,7 @@ export default function Idea() {
                 <div className="space-y-3">
                   <div className="relative">
                     <Textarea
-                      placeholder="e.g., 'Our clients are mostly enterprise-level companies, focus more on leads for businesses of this size' or 'Our business focuses more on preventative care than treatment, can you adapt the idea more to this?' or 'Most of our customers are actually also first-time homebuyers'"
+                      placeholder="e.g., 'We focus mostly on enterprise-level companies' or 'Our service is actually more focused on preventative care than treatment'"
                       value={iterationFeedback}
                       onChange={(e) => setIterationFeedback(e.target.value)}
                       className="min-h-[120px] resize-none"
@@ -597,7 +600,7 @@ export default function Idea() {
           </div>
 
           {/* Right Column - 1/3 width */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Generate AI-Ready Blueprint */}
             <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
               <CardHeader>
@@ -610,7 +613,7 @@ export default function Idea() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {!idea.magnetSpec && !idea.creationPrompt ? (
+                  {!ideaData.idea.magnetSpec && !ideaData.idea.creationPrompt ? (
                     <Button
                       onClick={() => {
                         // Open modal immediately with loading state
@@ -622,11 +625,11 @@ export default function Idea() {
                         setIsGeneratingPrompt(true);
                         
                         const businessData = {
-                          prodDescription: idea.idea.magnetRequest.prodDescription,
-                          targetAudience: idea.idea.magnetRequest.targetAudience,
-                          location: idea.idea.magnetRequest.location || ""
+                          prodDescription: ideaData.idea.idea.magnetRequest.prodDescription,
+                          targetAudience: ideaData.idea.idea.magnetRequest.targetAudience,
+                          location: ideaData.idea.idea.magnetRequest.location || ""
                         };
-                        generateSpecMutation.mutate({ idea, businessData });
+                        generateSpecMutation.mutate({ idea: ideaData.idea, businessData });
                       }}
                       disabled={generateSpecMutation.isPending || isIterating}
                       className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
@@ -645,13 +648,13 @@ export default function Idea() {
                     </Button>
                   ) : (
                     <div className="space-y-2">
-                      {idea.creationPrompt && (
+                      {ideaData.idea.creationPrompt && (
                         <Button
                           variant="outline"
                           onClick={() => {
                             setModalContent({
                               title: "Build Prompt",
-                              content: idea.creationPrompt!
+                              content: ideaData.idea.creationPrompt!
                             });
                             setIsPromptModalOpen(true);
                           }}
@@ -660,7 +663,7 @@ export default function Idea() {
                           View AI-ready prompt
                         </Button>
                       )}
-                      {/* {idea.magnetSpec && (
+                      {/* {ideaData.idea.magnetSpec && (
                         <Button
                           variant="outline"
                           onClick={() => {
@@ -689,7 +692,7 @@ export default function Idea() {
             {/* Feedback Widget */}
             <Card className="bg-white shadow-sm border border-slate-200">
               <CardHeader>
-                <CardTitle className="text-lg">How useful was this idea?</CardTitle>
+                <CardTitle className="text-lg">How Useful Was This Idea?</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -787,8 +790,8 @@ export default function Idea() {
       <TechSpecModal
         isOpen={isTechSpecModalOpen}
         onClose={() => setIsTechSpecModalOpen(false)}
-        content={idea.magnetSpec || ""}
-        leadMagnetTitle={idea.name}
+        content={ideaData.idea.magnetSpec || ""}
+        leadMagnetTitle={ideaData.idea.name}
       />
 
       {/* Prompt Modal */}
@@ -797,7 +800,7 @@ export default function Idea() {
         onClose={() => setIsPromptModalOpen(false)}
         title={modalContent.title}
         content={modalContent.content}
-        leadMagnetTitle={idea.name}
+        leadMagnetTitle={ideaData.idea.name}
         isLoading={isGeneratingPrompt}
       />
 
@@ -805,8 +808,8 @@ export default function Idea() {
       <HelpBuildModal
         isOpen={isHelpBuildModalOpen}
         onClose={() => setIsHelpBuildModalOpen(false)}
-        ideaName={idea.name}
-        ideaIterationId={idea.id}
+        ideaName={ideaData.idea.name}
+        ideaIterationId={ideaData.idea.id}
       />
 
       {/* Business Profile Modal */}
@@ -814,10 +817,10 @@ export default function Idea() {
         isOpen={isBusinessProfileModalOpen}
         onClose={() => setIsBusinessProfileModalOpen(false)}
         businessData={{
-          prodDescription: idea.idea.magnetRequest.prodDescription,
-          targetAudience: idea.idea.magnetRequest.targetAudience,
-          location: idea.idea.magnetRequest.location,
-          businessUrl: idea.idea.magnetRequest.businessUrl
+          prodDescription: ideaData.idea.idea.magnetRequest.prodDescription,
+          targetAudience: ideaData.idea.idea.magnetRequest.targetAudience,
+          location: ideaData.idea.idea.magnetRequest.location,
+          businessUrl: ideaData.idea.idea.magnetRequest.businessUrl
         }}
       />
     </div>

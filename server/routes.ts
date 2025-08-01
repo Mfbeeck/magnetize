@@ -19,33 +19,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = generateIdeasSchema.parse(req.body);
       const { prodDescription, targetAudience, location, businessUrl } = validatedData;
 
-      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
+      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. I am not that well-versed in what is possible now with AI, so please make sure to add in interesting uses of AI in the lead magnet ideas when relevant. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
 
 Business Context:
 Product/service: ${prodDescription}
 Target audience: ${targetAudience}
-Location: ${location || 'Not specified'}
+Location of customers: ${location || 'Not specified'}
 
 Requirements:
 Generate 7-10 web app ideas that:
 - Solve a real problem the target audience faces
 - Naturally lead to my paid services
-- Can collect email addresses/contact info
+- Can collect email addresses or other contact info
 
 For each idea, provide:
 - Lead Magnet Name: creative, but self-explanatory
 - Summary: what it is in 1-2 sentences
-- Detailed Description: a more detailed explainer of the lead magnet, 4-6 sentences long
-- Why This: Explain why this lead magnet makes sense for the business being analyzed. This should be 3-6 sentences that explain why the target audience mentioned in the business context would find this valuable and how it relates to that business' product or service offering.
-- Complexity Level: Simple/Moderate/Advanced
+- Detailed Description: a detailed explainer of the lead magnet. This should be 6-12 sentences long and use simple language to explain the lead magnet to a non-technical person. It should cover what the lead magnet does, what input is required from the user and what output is delivered to the user. Also it should estimate how long it would take for a user to complete.
+- Why This: A non-technical explanation of why this lead magnet makes sense specifically for the business being analyzed. This should be 5-10 sentences and explain why the business' target audience would find this valuable and how it relates to that business' product or service offering.
+- Complexity Level: Simple/Moderate/Advanced (where simple is something that can be built in a few hours, moderate is something that can be built in a few days, and advanced is something that can be built in a few weeks)
 
-Make sure to include at least 1 idea for each complexity level.
+Since I am just getting started on building these kinds of tools, focus on giving me mostly simple ideas with a few moderate ideas and include only 1 advanced idea.
 
 Output Format:
 Return as a dictionary in json format with an "ideas" array containing all ideas and their respective properties. Each idea should have the exact properties: name, summary, detailedDescription, whyThis, complexityLevel.`;
 
       const response = await client.responses.create({
-        model: "o4-mini", // Using o3 model as requested by user
+        model: "o3", // Using o3 model as requested by user
         input: prompt,
         text: { 
           format: {
@@ -211,60 +211,46 @@ Return as a dictionary in json format with an "ideas" array containing all ideas
     }
   });
 
-  app.get("/api/ideas/:id/iterations", async (req, res) => {
+  app.get("/api/results/:publicId/ideas/:resultIdeaId/with-metadata", async (req, res) => {
     try {
-      const { id } = req.params;
-      const ideaId = parseInt(id);
+      const { publicId, resultIdeaId } = req.params;
+      const resultId = parseInt(resultIdeaId);
       
-      if (isNaN(ideaId)) {
+      if (isNaN(resultId)) {
         return res.status(400).json({ 
-          error: "Invalid idea ID", 
-          message: "Idea ID must be a number" 
+          error: "Invalid result idea ID", 
+          message: "Result idea ID must be a number" 
         });
       }
 
-      // Get the original idea to find the magnet request ID
-      const originalIdea = await storage.getIdeaById(ideaId);
+      const idea = await storage.getIdeaByResultId(publicId, resultId);
       
-      if (!originalIdea) {
+      if (!idea) {
         return res.status(404).json({ 
           error: "Not found", 
           message: "Idea not found" 
         });
       }
 
-      // Get all iterations of this idea
-      const iterations = await storage.getIdeaIterationsByIdeaId(originalIdea.id);
-      
-      // If no iterations exist, create a version 0 iteration
-      if (iterations.length === 0) {
-        const initialIteration = {
-          ideaId: originalIdea.id,
-          version: 0,
-          name: originalIdea.name,
-          summary: originalIdea.summary,
-          detailedDescription: originalIdea.detailedDescription,
-          whyThis: originalIdea.whyThis,
-          complexityLevel: originalIdea.complexityLevel
-        };
-        
-        const [createdIteration] = await storage.createIdeaIterations([initialIteration]);
-        // Fetch the iteration with relationships
-        const iterationWithRelations = await storage.getIdeaByIdAndVersion(originalIdea.id, 0);
-        if (iterationWithRelations) {
-          iterations.push(iterationWithRelations);
-        }
-      }
-      
-      res.json({ iterations });
+      // Get iteration metadata for this idea
+      const iterationMetadata = await storage.getIterationMetadataByIdeaId(idea.id);
+
+      res.json({
+        idea,
+        iterationMetadata
+      });
     } catch (error) {
-      console.error("Error fetching idea iterations:", error);
+      console.error("Error fetching idea with metadata:", error);
       res.status(500).json({ 
-        error: "Failed to fetch idea iterations", 
+        error: "Failed to fetch idea with metadata", 
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
+
+
+
+
 
   app.post("/api/generate-spec", async (req, res) => {
     try {
@@ -289,7 +275,7 @@ Business Details:
 Product/Service offering: ${businessData.prodDescription}
 Target audience: ${businessData.targetAudience}
 Location: ${businessData.location || 'Not specified'}
-Contact collection needs: Email
+Contact collection needs: Email or other contact info
 
 Create two outputs:
 
@@ -319,7 +305,7 @@ Output Format:
 Return as a JSON object with two properties: "magnetSpec" (containing the technical specification) and "creationPrompt" (containing the one-shot coding prompt).`;
 
       const response = await client.responses.create({
-        model: "o4-mini",
+        model: "o3",
         input: prompt,
         text: { 
           format: {
@@ -386,33 +372,33 @@ Return as a JSON object with two properties: "magnetSpec" (containing the techni
       const validatedData = generateIdeasSchema.parse(req.body);
       const { prodDescription, targetAudience, location, businessUrl } = validatedData;
 
-      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
+      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. I am not that well-versed in what is possible now with AI, so please make sure to add in interesting uses of AI in the lead magnet ideas when relevant. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
 
 Business Context:
 Product/service: ${prodDescription}
 Target audience: ${targetAudience}
-Location: ${location || 'Not specified'}
+Location of customers: ${location || 'Not specified'}
 
 Requirements:
 Generate 7-10 web app ideas that:
 - Solve a real problem the target audience faces
 - Naturally lead to my paid services
-- Can collect email addresses/contact info
+- Can collect email addresses or other contact info
 
 For each idea, provide:
 - Lead Magnet Name: creative, but self-explanatory
 - Summary: what it is in 1-2 sentences
-- Detailed Description: a more detailed explainer of the lead magnet, 4-6 sentences long
-- Why This: Explain why this lead magnet makes sense for your business by describing the value it provides the audience and how it relates to what the business does. This should be 3-6 sentences that explain why the audience would find this valuable and how it relates to the business' products or services.
-- Complexity Level: Simple/Moderate/Advanced
+- Detailed Description: a detailed explainer of the lead magnet. This should be 6-12 sentences long and use simple language to explain the lead magnet to a non-technical person. It should cover what the lead magnet does, what input is required from the user and what output is delivered to the user. Also it should estimate how long it would take for a user to complete.
+- Why This: A non-technical explanation of why this lead magnet makes sense specifically for the business being analyzed. This should be 5-10 sentences and explain why the business' target audience would find this valuable and how it relates to that business' product or service offering.
+- Complexity Level: Simple/Moderate/Advanced (where simple is something that can be built in a few hours, moderate is something that can be built in a few days, and advanced is something that can be built in a few weeks)
 
-Make sure to include at least 1 idea for each complexity level.
+Since I am just getting started on building these kinds of tools, focus on giving me mostly simple ideas with a few moderate ideas and include only 1 advanced idea.
 
 Output Format:
 Return as a dictionary in json format with an "ideas" array containing all ideas and their respective properties. Each idea should have the exact properties: name, summary, detailedDescription, whyThis, complexityLevel.`;
 
       const response = await client.responses.create({
-        model: "o4-mini",
+        model: "o3",
         input: prompt,
         text: { 
           format: {
@@ -807,10 +793,10 @@ Guidelines
       // Use currentIdeaContent if provided, otherwise use latest iteration
       const baseContent = currentIdeaContent || latestIteration;
 
-      const prompt = `You are the marketing expert who came up with a impactful lead magnet idea for the business mentioned below. I want you to improve upon the idea based on the user's feedback.
+      const prompt = `You are the marketing expert who came up with an impactful lead magnet idea for the business mentioned below. I want you to improve upon the lead magnet idea you came up with based on the user's feedback.
 
 Goal  
-Use the user's feedback to iterate on the provided lead‑magnet idea, producing a sharper, more personalized version.
+Use the user's feedback to iterate on the provided lead magnet idea, producing a sharper, more personalized version.
 
 Inputs  
 Business Context (unchanged):  
@@ -819,20 +805,18 @@ Business Context (unchanged):
 • Location: ${idea.magnetRequest.location || 'Not specified'}
 
 Original lead magnet idea provided:  
-{
-  "name": "${baseContent.name}",
-  "summary": "${baseContent.summary}",
-  "detailedDescription": "${baseContent.detailedDescription}",
-  "whyThis": "${baseContent.whyThis}",
-  "complexityLevel": "${baseContent.complexityLevel}"
-}
+• Lead magnet name: "${baseContent.name}",
+• Summary of lead magnet: "${baseContent.summary}",
+• Detailed description of lead magnet: "${baseContent.detailedDescription}",
+• Why this lead magnet makes sense for the business: "${baseContent.whyThis}",
+• Complexity level of building the lead magnet (simple, moderate or advanced, where simple is something that can be built in a few hours, moderate is something that can be built in a few days, and advanced is something that can be built in a few weeks): "${baseContent.complexityLevel}"
 
 User feedback / personalization notes (free‑form text):  
 ${userFeedback}
 
 Instructions  
-1. Re‑read the **Business Context** and the **Original lead magnet info** alongside the **User feedback**.  
-2. Revise or reimagine the idea so it better fits the feedback while still:  
+1. Re‑read the above **Business Context** and the **Original lead magnet info** alongside the **User feedback**.  
+2. Revise or iterate on the idea so it better fits the feedback while still:  
    • Solving a real problem for the target audience  
    • Naturally leading to the business' paid offering  
    • Collecting email addresses or contact info
@@ -845,22 +829,19 @@ Instructions
    • complexityLevel  
 
 Output format  
-Return a JSON object with a single‑element \`ideas\` array, structured exactly like this:
+Return a JSON object structured exactly like this:
 
 {
-  "ideas": [
-    {
-      "name": "<string>",
-      "summary": "<string>",
-      "detailedDescription": "<string>",
-      "whyThis": "<string>",
-      "complexityLevel": "<Simple|Moderate|Advanced>"
-    }
-  ]
-}`;
+  "name": "<string>",
+  "summary": "<string>",
+  "detailedDescription": "<string>",
+  "whyThis": "<string>",
+  "complexityLevel": "<Simple|Moderate|Advanced>"
+}
+`;
 
       const response = await client.responses.create({
-        model: "o4-mini",
+        model: "o3",
         input: prompt,
         text: { 
           format: {
@@ -871,11 +852,11 @@ Return a JSON object with a single‑element \`ideas\` array, structured exactly
       const rawOutputText = response.output_text;
       const result = JSON.parse(rawOutputText || "{}");
       
-      if (!result.ideas || !Array.isArray(result.ideas) || result.ideas.length === 0) {
+      if (!result.name || !result.summary || !result.detailedDescription || !result.whyThis || !result.complexityLevel) {
         throw new Error("Invalid response format from OpenAI for idea iteration");
       }
 
-      const newIdea = result.ideas[0];
+      const newIdea = result;
 
       // Validate the new idea has required properties
       if (!newIdea.name || !newIdea.summary || !newIdea.detailedDescription || !newIdea.whyThis || !newIdea.complexityLevel) {
@@ -909,6 +890,39 @@ Return a JSON object with a single‑element \`ideas\` array, structured exactly
       console.error("Error iterating idea:", error);
       res.status(500).json({ 
         error: "Failed to iterate idea", 
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/ideas/:id/iteration/:version", async (req, res) => {
+    try {
+      const { id, version } = req.params;
+      const ideaId = parseInt(id);
+      const versionNum = parseInt(version);
+      
+      if (isNaN(ideaId) || isNaN(versionNum)) {
+        return res.status(400).json({ 
+          error: "Invalid parameters", 
+          message: "Idea ID and version must be numbers" 
+        });
+      }
+
+      // Get the specific iteration
+      const iteration = await storage.getIdeaByIdAndVersion(ideaId, versionNum);
+      
+      if (!iteration) {
+        return res.status(404).json({ 
+          error: "Not found", 
+          message: "Idea iteration not found" 
+        });
+      }
+      
+      res.json({ iteration });
+    } catch (error) {
+      console.error("Error fetching idea iteration:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch idea iteration", 
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }
