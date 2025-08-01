@@ -300,11 +300,9 @@ Create a complete, copy-paste prompt for AI coding tools that includes:
 - Clear project description and requirements
 - Specific functionality details explaining what the app should do and how it should work
 - UI/UX specifications
-- Code structure preferences
 - Output format requirements
-- Any necessary constraints or limitations
 
-The coding prompt should be detailed enough that an AI tool can build a working prototype without additional clarification.
+The one-shot coding prompt should be detailed enough that an AI tool can build a working prototype, but there's no need to detail out the technical implementation details, the AI builder can decide how to implement it.
 
 Output Format:
 Return as a JSON object with two properties: "magnetSpec" (containing the technical specification) and "creationPrompt" (containing the one-shot coding prompt).`;
