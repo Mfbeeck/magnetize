@@ -19,7 +19,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = generateIdeasSchema.parse(req.body);
       const { prodDescription, targetAudience, location, businessUrl } = validatedData;
 
-      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. I am not that well-versed in what is possible now with AI, so please make sure to add in interesting uses of AI in the lead magnet ideas when relevant. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
+      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience by leveraging AI coding tools (so only suggest ideas that aren't extremely complex to build). I am not that well-versed in what is possible now with AI, so please make sure to add in interesting uses of AI in the lead magnet ideas when relevant. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
 
 Business Context:
 Product/service: ${prodDescription}
@@ -32,10 +32,15 @@ Generate 7-10 web app ideas that:
 - Naturally lead to my paid services
 - Can collect email addresses or other contact info
 
+For each idea, make sure to:
+- Use plain English. Avoid technical jargon (SDK, LLM, computer vision, etc.).
+- Focus on the user experience: what they do and what they get.
+- If a technical details are useful, try to describe them in user-focused terms such as “the app analyses your video” or “the tool automatically reviews your answers”.
+
 For each idea, provide:
 - Lead Magnet Name: creative, but self-explanatory
 - Summary: what it is in 1-2 sentences
-- Detailed Description: a detailed explainer of the lead magnet. This should be 6-12 sentences long and use simple language to explain the lead magnet to a non-technical person. It should cover what the lead magnet does, what input is required from the user and what output is delivered to the user. Also it should estimate how long it would take for a user to complete.
+- Detailed Description: a detailed explainer of the lead magnet. This should be 6-12 sentences long and use simple language to explain the lead magnet to a non-technical person. It should cover what the lead magnet does, what input is required from the user and what output is delivered to the user. Also it should estimate how long it would take for a user to complete and specify what contact info the user would provide and when.
 - Why This: A non-technical explanation of why this lead magnet makes sense specifically for the business being analyzed. This should be 5-10 sentences and explain why the business' target audience would find this valuable and how it relates to that business' product or service offering.
 - Complexity Level: Simple/Moderate/Advanced (where simple is something that can be built in a few hours, moderate is something that can be built in a few days, and advanced is something that can be built in a few weeks)
 
@@ -372,7 +377,7 @@ Return as a JSON object with two properties: "magnetSpec" (containing the techni
       const validatedData = generateIdeasSchema.parse(req.body);
       const { prodDescription, targetAudience, location, businessUrl } = validatedData;
 
-      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience. I am not that well-versed in what is possible now with AI, so please make sure to add in interesting uses of AI in the lead magnet ideas when relevant. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
+      const prompt = `You are a marketing guru and I need some advice from you. I am the CMO of a business and need help generating ideas for free web app lead magnets we could make for our target audience. I will describe the product or service we sell and provide a description of who our target audience is; based on that information, I want you to generate lead magnet ideas that we could build for our target audience by leveraging AI coding tools (so only suggest ideas that aren't extremely complex to build). I am not that well-versed in what is possible now with AI, so please make sure to add in interesting uses of AI in the lead magnet ideas when relevant. The goal of these lead magnets is to captivate our target audience's interest by giving them something of value in exchange for their information, hopefully lowering our businesses' customer acquisition cost, or CAC.
 
 Business Context:
 Product/service: ${prodDescription}
@@ -385,10 +390,15 @@ Generate 7-10 web app ideas that:
 - Naturally lead to my paid services
 - Can collect email addresses or other contact info
 
+For each idea, make sure to:
+- Use plain English. Avoid technical jargon (SDK, LLM, computer vision, etc.).
+- Focus on the user experience: what they do and what they get.
+- If a technical details are useful, try to describe them in user-focused terms such as “the app analyses your video” or “the tool automatically reviews your answers”.
+
 For each idea, provide:
 - Lead Magnet Name: creative, but self-explanatory
 - Summary: what it is in 1-2 sentences
-- Detailed Description: a detailed explainer of the lead magnet. This should be 6-12 sentences long and use simple language to explain the lead magnet to a non-technical person. It should cover what the lead magnet does, what input is required from the user and what output is delivered to the user. Also it should estimate how long it would take for a user to complete.
+- Detailed Description: a detailed explainer of the lead magnet. This should be 6-12 sentences long and use simple language to explain the lead magnet to a non-technical person. It should cover what the lead magnet does, what input is required from the user and what output is delivered to the user. It should also estimate how long it would take for a user to complete and specify what contact info the user would provide and when.
 - Why This: A non-technical explanation of why this lead magnet makes sense specifically for the business being analyzed. This should be 5-10 sentences and explain why the business' target audience would find this valuable and how it relates to that business' product or service offering.
 - Complexity Level: Simple/Moderate/Advanced (where simple is something that can be built in a few hours, moderate is something that can be built in a few days, and advanced is something that can be built in a few weeks)
 
