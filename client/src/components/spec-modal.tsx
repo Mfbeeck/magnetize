@@ -66,7 +66,7 @@ export function SpecModal({ isOpen, onClose, title, content, leadMagnetTitle, is
               To start building a prototype for this lead magnet, copy and paste the prompt into an AI builder like{" "}
               <a href="https://lovable.dev/?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">Lovable</a>,{" "}
               <a href="https://replit.com/~?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">Replit</a>,{" "}
-              <a href="https://claude.ai?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">Claude</a>, etc.
+              <a href="https://bolt.new?utm_source=magnetize-app" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">bolt.new</a>, etc.
             </p>
           </div>
         </DialogHeader>
