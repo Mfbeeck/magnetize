@@ -224,7 +224,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <h2 className="max-w-xl mx-auto text-4xl font-bold text-slate-900 mb-4">Discover the Right Lead Magnet for Your Business</h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            People don’t want to be sold, they want to be helped. Magnetize gives you lead magnet ideas you can build today to earn attention by delivering real value upfront.
+            People don’t want to be sold, they want to be helped. Magnetize gives you interactive lead magnet ideas you can build today to earn attention by delivering real value upfront.
             </p>
           </div>
         )}
